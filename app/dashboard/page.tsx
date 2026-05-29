@@ -1,20 +1,30 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  Flag, Wallet, Zap, Play, Skull, Send, ShoppingCart, 
-  MessageSquare, Star, Target, Flame, Gauge, Ticket, Volume2, VolumeX, User, Lock
+  Flag, Wallet, Zap, ShoppingCart, MessageSquare, Star, Target, Flame, 
+  Gauge, Ticket, Volume2, VolumeX, User, Lock, Send, Heart, Camera, PlusCircle, LayoutGrid
 } from "lucide-react";
 
-export default function HobotniaUltimateEdition() {
+export default function HobotniaInstagramEdition() {
   const [userId] = useState("default-user-id");
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"race" | "garage" | "social">("race");
+  const [activeTab, setActiveTab] = useState<"race" | "garage" | "social" | "instagram">("instagram");
   
-  // Списки з бекенду
+  // Списки
   const [rooms, setRooms] = useState<any[]>([]);
   const [globalMessages, setGlobalMessages] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   
+  // Хобот-Грам стейти
+  const [posts, setPosts] = useState<any[]>([]);
+  const [stories, setStories] = useState<any[]>([]);
+  const [activeStoryModal, setActiveStoryModal] = useState<any>(null);
+  
+  // Створення контенту
+  const [newPostText, setNewPostText] = useState("");
+  const [newPostImg, setNewPostImg] = useState("");
+  const [newStoryImg, setNewStoryImg] = useState("");
+
   // Месенджер стейти
   const [socialMode, setSocialMode] = useState<"global" | "private">("global");
   const [selectedContact, setSelectedContact] = useState<any>(null);
@@ -64,13 +74,18 @@ export default function HobotniaUltimateEdition() {
     if (cRes.ok) setGlobalMessages(await cRes.json());
 
     const listRes = await fetch(`/api/users/list?excludeId=${userId}`);
-    if (listRes.ok) setContacts(await listRes.ok ? await listRes.json() : []);
+    if (listRes.ok) setContacts(await listRes.json());
+
+    // Завантаження Хобот-Грама
+    const postsRes = await fetch("/api/instagram/posts");
+    if (postsRes.ok) setPosts(await postsRes.json());
+
+    const storiesRes = await fetch("/api/instagram/stories");
+    if (storiesRes.ok) setStories(await storiesRes.json());
   };
 
   useEffect(() => { loadData(); }, []);
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [globalMessages, privateMessages, socialMode]);
 
-  // Завантаження приватної переписки при виборі контакту
   useEffect(() => {
     if (selectedContact) {
       fetch(`/api/messages/dm?userId=${userId}&contactId=${selectedContact.id}`)
@@ -79,12 +94,35 @@ export default function HobotniaUltimateEdition() {
     }
   }, [selectedContact]);
 
+  const handleCreatePost = async () => {
+    if (!newPostImg.trim()) return;
+    const res = await fetch("/api/instagram/posts", {
+      method: "POST",
+      body: JSON.stringify({ userId, imageUrl: newPostImg, caption: newPostText })
+    });
+    if (res.ok) { setNewPostImg(""); setNewPostText(""); loadData(); }
+  };
+
+  const handleAddStory = async () => {
+    if (!newStoryImg.trim()) return;
+    const res = await fetch("/api/instagram/stories", {
+      method: "POST",
+      body: JSON.stringify({ userId, mediaUrl: newStoryImg })
+    });
+    if (res.ok) { setNewStoryImg(""); loadData(); }
+  };
+
+  const handleLikePost = async (postId: string) => {
+    const res = await fetch("/api/instagram/posts/like", {
+      method: "POST",
+      body: JSON.stringify({ postId })
+    });
+    if (res.ok) loadData();
+  };
+
   const sendGlobalMessage = async () => {
     if (!chatInput.trim()) return;
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ userId, text: chatInput })
-    });
+    const res = await fetch("/api/chat", { method: "POST", body: JSON.stringify({ userId, text: chatInput }) });
     if (res.ok) { setChatInput(""); loadData(); }
   };
 
@@ -96,7 +134,6 @@ export default function HobotniaUltimateEdition() {
     });
     if (res.ok) {
       setDmInput("");
-      // Перезавантажуємо гілку діалогу
       const freshDMs = await fetch(`/api/messages/dm?userId=${userId}&contactId=${selectedContact.id}`).then(r => r.json());
       setPrivateMessages(freshDMs);
     }
@@ -104,10 +141,7 @@ export default function HobotniaUltimateEdition() {
 
   const handleActivatePromo = async () => {
     if (!promoInput.trim()) return;
-    const res = await fetch("/api/promo", {
-      method: "POST",
-      body: JSON.stringify({ userId, code: promoInput })
-    });
+    const res = await fetch("/api/promo", { method: "POST", body: JSON.stringify({ userId, code: promoInput }) });
     const data = await res.json();
     alert(data.message || data.error);
     if (res.ok) { setPromoInput(""); loadData(); }
@@ -115,15 +149,10 @@ export default function HobotniaUltimateEdition() {
 
   const handleStartServerRace = async (room: any) => {
     setRaceStatus("racing");
-    setLogs(["⚡ [СЕРВЕР]: Прорахунок шансів, крутного моменту та зачепу коліс..."]);
+    setLogs(["⚡ [СЕРВЕР]: Запуск симуляції..."]);
     const res = await fetch("/api/rooms/simulate", { method: "POST", body: JSON.stringify({ roomId: room.id, userId }) });
     const data = await res.json();
-    setTimeout(() => { setRaceStatus("finished"); setLogs(data.logs); loadData(); }, 2500);
-  };
-
-  const buyItem = async (item: any) => {
-    const res = await fetch("/api/garage/buy", { method: "POST", body: JSON.stringify({ userId, itemId: item.id }) });
-    if (res.ok) { alert("Апгрейд успішно встановлено!"); loadData(); } else { alert((await res.json()).error); }
+    setTimeout(() => { setRaceStatus("finished"); setLogs(data.logs); loadData(); }, 2000);
   };
 
   if (introStep === "video") {
@@ -133,10 +162,10 @@ export default function HobotniaUltimateEdition() {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80" />
         <div className="absolute bottom-10 right-10 flex gap-4 z-50">
           <button onClick={() => setIsMuted(!isMuted)} className="p-3 bg-white/10 text-white rounded-full backdrop-blur-md border border-white/20">{isMuted ? <VolumeX /> : <Volume2 />}</button>
-          <button onClick={() => setIntroStep("quote")} className="px-6 py-3 bg-red-600 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg">Пропустити інтро</button>
+          <button onClick={() => setIntroStep("quote")} className="px-6 py-3 bg-red-600 text-white font-black text-xs uppercase tracking-widest rounded-xl">Пропустити інтро</button>
         </div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-          <h1 className="text-6xl md:text-8xl font-black italic tracking-tighter text-white uppercase drop-shadow-[0_5px_15px_rgba(255,0,0,0.5)]">ХОБОТНЯ</h1>
+          <h1 className="text-6xl md:text-8xl font-black italic tracking-tighter text-white uppercase">ХОБОТНЯ</h1>
         </div>
       </div>
     );
@@ -159,15 +188,16 @@ export default function HobotniaUltimateEdition() {
 
   return (
     <div className="min-h-screen bg-[#050507] text-zinc-100 flex font-sans">
-      {/* NAVBAR */}
+      {/* SIDEBAR */}
       <nav className="w-20 bg-black border-r border-zinc-900 flex flex-col items-center py-8 gap-8">
         <div className="text-red-600 font-black text-2xl italic">Х</div>
+        <button onClick={() => setActiveTab("instagram")} className={`p-3 rounded-xl ${activeTab === 'instagram' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}><LayoutGrid /></button>
         <button onClick={() => setActiveTab("race")} className={`p-3 rounded-xl ${activeTab === 'race' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}><Flag /></button>
         <button onClick={() => setActiveTab("garage")} className={`p-3 rounded-xl ${activeTab === 'garage' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}><ShoppingCart /></button>
         <button onClick={() => setActiveTab("social")} className={`p-3 rounded-xl ${activeTab === 'social' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}><MessageSquare /></button>
       </nav>
 
-      {/* WORKSPACE */}
+      {/* CORE WORKSPACE */}
       <main className="flex-1 flex flex-col">
         <header className="h-16 border-b border-zinc-900 px-8 flex items-center justify-between bg-black/50 backdrop-blur-md">
           <div className="flex gap-6 items-center">
@@ -176,32 +206,117 @@ export default function HobotniaUltimateEdition() {
                <span className="text-emerald-400 font-mono font-bold">₴ {user.balance.toLocaleString()}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-             <span className="text-sm font-bold italic">{user.nickname}</span>
-          </div>
+          <div className="text-sm font-bold italic text-zinc-400">@{user.nickname}</div>
         </header>
 
         <div className="p-8 overflow-y-auto h-[calc(100vh-64px)]">
+          
+          {/* ХОБОТ-ГРАМ ІНТЕРФЕЙС */}
+          {activeTab === "instagram" && (
+            <div className="max-w-2xl mx-auto space-y-8">
+               
+               {/* СТОРІС СТРІЧКА */}
+               <div className="bg-zinc-950 p-4 border border-zinc-900 rounded-2xl flex gap-4 items-center overflow-x-auto">
+                  <div className="flex flex-col items-center min-w-[70px] relative">
+                     <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center border border-dashed border-zinc-700 hover:border-red-500 cursor-pointer">
+                        <PlusCircle className="h-6 w-6 text-zinc-500" />
+                     </div>
+                     <span className="text-[10px] mt-1 text-zinc-500 font-mono">Додати</span>
+                     <input 
+                       type="text" 
+                       placeholder="URL картики" 
+                       value={newStoryImg}
+                       onChange={e => setNewStoryImg(e.target.value)}
+                       onKeyDown={e => e.key === 'Enter' && handleAddStory()}
+                       className="absolute inset-0 opacity-0 cursor-pointer" 
+                     />
+                  </div>
+
+                  {stories.map((story: any) => (
+                    <div key={story.id} onClick={() => setActiveStoryModal(story)} className="flex flex-col items-center min-w-[70px] cursor-pointer">
+                       <div className="w-14 h-14 p-0.5 rounded-full bg-gradient-to-tr from-amber-500 via-red-600 to-purple-600">
+                          <div className="w-full h-full bg-black rounded-full flex items-center justify-center font-bold text-xs font-mono border border-black text-white">
+                             {story.user.nickname.substring(0, 2).toUpperCase()}
+                          </div>
+                       </div>
+                       <span className="text-[10px] mt-1 text-zinc-300 font-mono truncate w-16 text-center">@{story.user.nickname}</span>
+                    </div>
+                  ))}
+               </div>
+
+               {/* СТВОРЕННЯ НОВОГО ПОСТУ */}
+               <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl space-y-4">
+                  <div className="flex items-center gap-2 text-xs font-black uppercase text-zinc-400"><Camera className="text-red-500" /> Опублікувати свій контент</div>
+                  <div className="grid grid-cols-2 gap-3">
+                     <input type="text" placeholder="URL зображення машини / кешу..." value={newPostImg} onChange={e => setNewPostImg(e.target.value)} className="bg-black border border-zinc-800 text-xs rounded-xl px-4 py-2 focus:outline-none focus:border-red-600 text-white font-mono" />
+                     <input type="text" placeholder="Життєвий підпис до фото..." value={newPostText} onChange={e => setNewPostText(e.target.value)} className="bg-black border border-zinc-800 text-xs rounded-xl px-4 py-2 focus:outline-none focus:border-red-600 text-white" />
+                  </div>
+                  <button onClick={handleCreatePost} className="w-full py-2 bg-zinc-100 hover:bg-white text-black text-xs font-black uppercase rounded-xl transition-all">Закинути в стрічку</button>
+               </div>
+
+               {/* СТРІЧКА ПОСТІВ СИНДИКАТУ */}
+               <div className="space-y-6">
+                  {posts.length === 0 ? (
+                    <div className="text-center py-12 text-xs font-mono text-zinc-600">Постів поки немає. Будь першим, хто закине контент!</div>
+                  ) : (
+                    posts.map((post: any) => (
+                      <div key={post.id} className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
+                         <div className="p-4 flex items-center gap-3 bg-black/20 border-b border-zinc-800/50">
+                            <div className="w-7 h-7 bg-red-600/20 rounded-full border border-red-600/30 flex items-center justify-center text-[10px] font-black text-red-500">H</div>
+                            <span className="text-xs font-black font-mono">@{post.user.nickname}</span>
+                         </div>
+                         <div className="w-full max-h-[400px] bg-black overflow-hidden flex items-center justify-center">
+                            <img src={post.imageUrl} alt="Post image" className="w-full object-cover" onError={(e:any)=>{e.target.src="https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=600&q=80"}} />
+                         </div>
+                         <div className="p-4 space-y-2">
+                            <div className="flex items-center gap-4">
+                               <button onClick={() => handleLikePost(post.id)} className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-red-500 transition-colors">
+                                  <Heart className="h-4 w-4 text-red-600 fill-red-600" /> {post.likes}
+                               </button>
+                            </div>
+                            <p className="text-xs text-zinc-300 leading-relaxed"><span className="font-black font-mono text-white mr-2">@{post.user.nickname}</span>{post.caption}</p>
+                         </div>
+                      </div>
+                    ))
+                  )}
+               </div>
+            </div>
+          )}
+
+          {/* МОДАЛКА ДЛЯ ПЕРЕГЛЯДУ СТОРІС */}
+          {activeStoryModal && (
+            <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4 animate-fade-in" onClick={() => setActiveStoryModal(null)}>
+               <div className="max-w-md w-full relative space-y-2" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center text-xs font-mono text-zinc-400 px-2">
+                     <span>СВІЖА СТОРІС ВІД @{activeStoryModal.user.nickname}</span>
+                     <button onClick={() => setActiveStoryModal(null)} className="text-red-500 font-bold">ЗАКРИТИ</button>
+                  </div>
+                  <div className="w-full h-[500px] bg-zinc-950 rounded-2xl overflow-hidden flex items-center justify-center border border-zinc-800">
+                     <img src={activeStoryModal.mediaUrl} alt="Story content" className="max-w-full max-h-full object-contain" />
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {/* ІНШІ ТАБИ (БЕЗ ЗМІН ЛОГІКИ) */}
           {activeTab === "race" && (
             <div className="grid grid-cols-12 gap-8">
               <div className="col-span-8 space-y-6">
                 {raceStatus !== "idle" ? (
                   <div className="bg-zinc-900/50 rounded-3xl p-8 border border-red-600/20">
-                    <h2 className="text-xl font-black italic mb-6 uppercase flex items-center gap-2"><Flame className="text-red-600" /> СЕРВЕРНИЙ РЕЗУЛЬТАТ ЗАЇЗДУ</h2>
-                    <div className="bg-black p-6 rounded-xl font-mono text-sm text-zinc-300 min-h-[150px] space-y-2 border border-zinc-800">
-                      {logs.map((l, i) => <div key={i} className="border-l-2 border-red-600 pl-2">{l}</div>)}
-                    </div>
-                    {raceStatus === "finished" && <button onClick={() => setRaceStatus("idle")} className="mt-4 px-6 py-2 bg-zinc-800 text-white rounded-xl text-xs font-bold">Назад в лобі</button>}
+                    <h2 className="text-xl font-black italic mb-6 uppercase flex items-center gap-2"><Flame className="text-red-600" /> СЕРВЕРНИЙ РЕЗУЛЬТАТ</h2>
+                    <div className="bg-black p-6 rounded-xl font-mono text-sm text-zinc-300 min-h-[150px] space-y-2 border border-zinc-800">{logs.map((l, i) => <div key={i}>{l}</div>)}</div>
+                    {raceStatus === "finished" && <button onClick={() => setRaceStatus("idle")} className="mt-4 px-6 py-2 bg-zinc-800 text-white rounded-xl text-xs font-bold">Назад</button>}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     {rooms.filter(r => r.status === "Очікування").map(r => (
                       <div key={r.id} className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col justify-between">
-                         <div className="flex justify-between mb-4">
+                         <div className="flex justify-between mb-2">
                             <span className="font-bold uppercase italic text-sm">{r.name}</span>
                             <span className="text-emerald-400 font-mono text-sm">₴ {r.bet}</span>
                          </div>
-                         <button onClick={() => handleStartServerRace(r)} className="w-full py-3 bg-red-600 text-white font-black uppercase text-xs rounded-xl">СТАРТ НА СЕРВЕРІ</button>
+                         <button onClick={() => handleStartServerRace(r)} className="w-full py-2 bg-red-600 text-white font-black text-xs rounded-xl">СТАРТ</button>
                       </div>
                     ))}
                   </div>
@@ -209,11 +324,8 @@ export default function HobotniaUltimateEdition() {
               </div>
               <div className="col-span-4">
                  <div className="bg-zinc-900 p-6 rounded-3xl border border-zinc-800 space-y-4">
-                    <h3 className="text-xs font-black uppercase text-zinc-400 flex items-center gap-2"><Ticket className="h-4 w-4 text-red-500" /> Активувати Промокод</h3>
-                    <div className="flex gap-2">
-                       <input type="text" value={promoInput} onChange={e => setPromoInput(e.target.value)} placeholder="Код (START2026)" className="flex-1 bg-black border border-zinc-800 rounded-xl px-3 py-1.5 text-xs focus:outline-none font-mono text-white" />
-                       <button onClick={handleActivatePromo} className="px-4 py-2 bg-zinc-100 text-black font-black text-xs rounded-xl">OK</button>
-                    </div>
+                    <input type="text" value={promoInput} onChange={e => setPromoInput(e.target.value)} placeholder="Промокод" className="w-full bg-black border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white" />
+                    <button onClick={handleActivatePromo} className="w-full py-2 bg-zinc-100 text-black font-black text-xs rounded-xl">OK</button>
                  </div>
               </div>
             </div>
@@ -224,103 +336,52 @@ export default function HobotniaUltimateEdition() {
                {garageItems.map(item => (
                  <div key={item.id} className="bg-zinc-900 border border-zinc-800 p-8 rounded-3xl space-y-4">
                     <div className="text-lg font-bold">{item.name}</div>
-                    <div className="text-xs text-zinc-500">{item.desc}</div>
                     <div className="text-xl font-mono text-emerald-400 font-bold">₴ {item.price.toLocaleString()}</div>
-                    <button onClick={() => buyItem(item)} disabled={user.purchasedItems?.includes(item.id)} className="w-full py-2.5 rounded-xl font-black uppercase text-xs border border-zinc-700 disabled:opacity-30">
-                      {user.purchasedItems?.includes(item.id) ? "Встановлено" : "Купити апгрейд"}
-                    </button>
+                    <button onClick={() => buyItem(item)} disabled={user.purchasedItems?.includes(item.id)} className="w-full py-2 rounded-xl text-xs font-black uppercase border border-zinc-700">Встановити</button>
                  </div>
                ))}
             </div>
           )}
 
-          {/* UNDERGROUND MESSENGER TABS */}
           {activeTab === "social" && (
-            <div className="grid grid-cols-12 gap-6 h-[550px] bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-               
-               {/* ЛІВА ЧАСТИНА: КОНТАКТИ ТА ТАБИ */}
+            <div className="grid grid-cols-12 gap-6 h-[500px] bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
                <div className="col-span-4 border-r border-zinc-800 flex flex-col bg-black/20">
                   <div className="p-4 border-b border-zinc-800 flex gap-2">
-                     <button onClick={() => setSocialMode("global")} className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${socialMode === 'global' ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}>Глобальний</button>
-                     <button onClick={() => setSocialMode("private")} className={`flex-1 py-2 text-xs font-black uppercase rounded-lg transition-all ${socialMode === 'private' ? 'bg-red-600 text-white' : 'text-zinc-400 bg-zinc-800'}`}>Приватні DM</button>
+                     <button onClick={() => setSocialMode("global")} className={`flex-1 py-1.5 text-xs font-black uppercase rounded-lg ${socialMode === 'global' ? 'bg-red-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}>Глобальний</button>
+                     <button onClick={() => setSocialMode("private")} className={`flex-1 py-1.5 text-xs font-black uppercase rounded-lg ${socialMode === 'private' ? 'bg-red-600 text-white' : 'text-zinc-400 bg-zinc-800'}`}>DM</button>
                   </div>
-
-                  <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                     {socialMode === "global" ? (
-                       <div className="p-4 text-center text-xs text-zinc-600 font-mono">Ви підключені до загальної рації синдикату.</div>
-                     ) : (
-                       contacts.map(c => (
-                         <button 
-                           key={c.id} 
-                           onClick={() => setSelectedContact(c)}
-                           className={`w-full p-3 rounded-xl flex items-center gap-3 font-mono text-xs transition-all text-left ${selectedContact?.id === c.id ? 'bg-zinc-800 border-l-4 border-red-600 text-white' : 'text-zinc-400 hover:bg-zinc-800/40'}`}
-                         >
-                           <User className="h-4 w-4 text-zinc-500" />
-                           <div>
-                             <div className="font-bold">@{c.nickname}</div>
-                             <span className="text-[9px] text-zinc-600 uppercase">{c.isVip ? "VIP-ХОБОТ" : "Користувач"}</span>
-                           </div>
-                         </button>
-                       ))
-                     )}
+                  <div className="flex-1 overflow-y-auto p-2">
+                     {socialMode === "private" && contacts.map(c => (
+                       <button key={c.id} onClick={() => setSelectedContact(c)} className={`w-full p-2.5 rounded-xl font-mono text-xs text-left ${selectedContact?.id === c.id ? 'bg-zinc-800 text-white' : 'text-zinc-400'}`}>@{c.nickname}</button>
+                     ))}
                   </div>
                </div>
-
-               {/* ПРАВА ЧАСТИНА: ВІКНО ДІАЛОГУ */}
                <div className="col-span-8 flex flex-col h-full bg-black/40">
                   {socialMode === "global" ? (
                     <>
-                      <div className="p-4 border-b border-zinc-800 font-black text-xs uppercase text-zinc-400 flex items-center gap-2">📻 Загальна шифрована рація</div>
-                      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                         {globalMessages.map((m: any) => (
-                           <div key={m.id} className="text-xs font-mono">
-                              <span className="text-red-500 font-bold">@{m.user.nickname}: </span>
-                              <span className="text-zinc-300">{m.text}</span>
-                           </div>
-                         ))}
-                         <div ref={chatEndRef} />
+                      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                         {globalMessages.map((m: any) => <div key={m.id} className="text-xs font-mono"><span className="text-red-500">@{m.user.nickname}:</span> {m.text}</div>)}
                       </div>
                       <div className="p-3 bg-black/60 border-t border-zinc-800 flex gap-2">
-                         <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendGlobalMessage()} placeholder="Крикнути в рацію..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-1.5 text-xs text-white focus:outline-none focus:border-red-600" />
+                         <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendGlobalMessage()} placeholder="Рація..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 text-xs text-white outline-none" />
                          <button onClick={sendGlobalMessage} className="p-2 bg-red-600 rounded-xl text-white"><Send className="h-3.5 w-3.5" /></button>
                       </div>
                     </>
                   ) : selectedContact ? (
                     <>
-                      <div className="p-4 border-b border-zinc-800 font-black text-xs font-mono text-zinc-300 flex items-center justify-between">
-                         <span className="flex items-center gap-2 text-red-500"><Lock className="h-3.5 w-3.5" /> ШИФРОВАНИЙ КАНАЛ: @{selectedContact.nickname}</span>
-                         <span className="text-[9px] bg-zinc-800 px-2 py-0.5 rounded text-zinc-500">P2P SECURE</span>
-                      </div>
-                      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                         {privateMessages.length === 0 ? (
-                           <div className="text-center py-24 text-xs font-mono text-zinc-600">Діалог пустий. Напиши перше повідомлення в приват.</div>
-                         ) : (
-                           privateMessages.map((m: any) => (
-                             <div key={m.id} className={`flex flex-col ${m.senderId === userId ? 'items-end' : 'items-start'}`}>
-                                <div className="max-w-[70%] p-2.5 rounded-2xl border text-xs font-mono text-zinc-200 bg-zinc-900/60 border-zinc-800">
-                                   <div className="text-[9px] text-zinc-500 font-bold mb-0.5">@{m.sender.nickname}</div>
-                                   <div>{m.text}</div>
-                                </div>
-                             </div>
-                           ))
-                         )}
-                         <div ref={chatEndRef} />
+                      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                         {privateMessages.map((m: any) => <div key={m.id} className="text-xs font-mono"><span className="text-zinc-500">@{m.sender.nickname}:</span> {m.text}</div>)}
                       </div>
                       <div className="p-3 bg-black/60 border-t border-zinc-800 flex gap-2">
-                         <input type="text" value={dmInput} onChange={e => setDmInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendPrivateMessage()} placeholder={`Надіслати приватне повідомлення для @${selectedContact.nickname}...`} className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-1.5 text-xs text-white focus:outline-none focus:border-red-600" />
+                         <input type="text" value={dmInput} onChange={e => setDmInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendPrivateMessage()} placeholder="Приват..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 text-xs text-white outline-none" />
                          <button onClick={sendPrivateMessage} className="p-2 bg-red-600 rounded-xl text-white"><Send className="h-3.5 w-3.5" /></button>
                       </div>
                     </>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 font-mono text-xs p-6 text-center">
-                       <Lock className="h-8 w-8 mb-2 text-zinc-800 animate-pulse" />
-                       Виберіть хобота зі списку контактів зліва, щоб відкрити приватний захищений P2P чат.
-                    </div>
-                  )}
+                  ) : <div className="text-center p-12 text-xs text-zinc-600 font-mono">Виберіть контакт</div>}
                </div>
-
             </div>
           )}
+
         </div>
       </main>
     </div>

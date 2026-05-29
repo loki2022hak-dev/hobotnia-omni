@@ -17,7 +17,7 @@ model User {
   vipExpiresAt   DateTime?
   
   speed          Int             @default(40)
-  grid          Int             @default(30) // Тюнінг
+  grid          Int             @default(30)
   nitro          Int             @default(30)
   
   purchasedItems String[]        @default([])
@@ -27,11 +27,13 @@ model User {
   rooms          Room[]          @relation("RoomCreator")
   transactions   Transaction[]   @relation("UserTransactions")
   invoices       Invoice[]       @relation("UserInvoices")
-  messages       Message[]       // Глобальний чат
-  
-  // Зв'язки для приватного месенджера
+  messages       Message[]       
   sentDMs        DirectMessage[] @relation("DMSender")
   receivedDMs    DirectMessage[] @relation("DMReceiver")
+  
+  // Нові зв'язки для Хобот-Грама
+  posts          Post[]
+  stories        Story[]
 }
 
 model Message {
@@ -50,6 +52,25 @@ model DirectMessage {
   receiverId String
   receiver   User     @relation("DMReceiver", fields: [receiverId], references: [id])
   createdAt  DateTime @default(now())
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  imageUrl  String
+  caption   String
+  likes     Int      @default(0)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Story {
+  id        String   @id @default(uuid())
+  mediaUrl  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime // Для логіки 24 годин
+  createdAt DateTime @default(now())
 }
 
 model Transaction {
