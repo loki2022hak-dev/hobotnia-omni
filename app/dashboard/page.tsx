@@ -40,16 +40,15 @@ interface RacingRoom {
   bet: number;
   playersCount: number;
   playersMax: number;
-  status: "В процесі" | "Очікування";
+  status: string;
   trackName: string;
   trackLength: string;
   trackType: string;
   turns: number;
-  leaderboard: { pos: number; name: string; gap: string; isUser: boolean }[];
+  creator?: { username: string };
 }
 
 export default function HobotniaDashboard() {
-  // Тимчасовий захардкоджений ID користувача для лінкування з БД (поки немає сесії auth)
   const [userId] = useState<string>("default-user-id");
   
   const [balance, setBalance] = useState<number>(12450.00);
@@ -79,25 +78,7 @@ export default function HobotniaDashboard() {
     }
   ]);
 
-  const [rooms, setRooms] = useState<RacingRoom[]>([
-    {
-      id: "room-2781",
-      name: "КІМНАТА #2781",
-      bet: 5000,
-      playersCount: 4,
-      playersMax: 4,
-      status: "В процесі",
-      trackName: "Нічне місто",
-      trackLength: "5.2 км",
-      trackType: "Кільцевий",
-      turns: 12,
-      leaderboard: [
-        { pos: 1, name: "Toretto", gap: "Лідер", isUser: false },
-        { pos: 2, name: "ХОБОТ", gap: "+0.42s", isUser: true },
-        { pos: 3, name: "Shadow", gap: "+1.15s", isUser: false }
-      ]
-    }
-  ]);
+  const [rooms, setRooms] = useState<RacingRoom[]>([]);
 
   const [chats, setChats] = useState<ChatThread[]>([
     {
@@ -113,28 +94,38 @@ export default function HobotniaDashboard() {
     }
   ]);
 
-  // Стягуємо VIP-профіль з сервера при завантаженні сторінки
-  useEffect(() => {
-    async function loadVipProfile() {
-      try {
-        const res = await fetch(`/api/vip?userId=${userId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setBalance(data.user.balance);
-          setStats({
-            speed: data.user.speed,
-            grip: data.user.grip,
-            nitro: data.user.nitro
-          });
-          setVipTier(data.vipStatus);
-        }
-      } catch (err) {
-        console.error("Помилка завантаження профілю з API:", err);
-      } finally {
-        setIsLoading(false);
+  // Стягуємо дані профілю та список кімнат з БД
+  async function loadDashboardData() {
+    try {
+      setIsLoading(true);
+      // 1. VIP профіль
+      const vipRes = await fetch(`/api/vip?userId=${userId}`);
+      if (vipRes.ok) {
+        const vipData = await vipRes.json();
+        setBalance(vipData.user.balance);
+        setStats({
+          speed: vipData.user.speed,
+          grip: vipData.user.grip,
+          nitro: vipData.user.nitro
+        });
+        setVipTier(vipData.vipStatus);
       }
+
+      // 2. Активні кімнати з бази даних
+      const roomsRes = await fetch("/api/rooms");
+      if (roomsRes.ok) {
+        const roomsData = await roomsRes.json();
+        setRooms(roomsData);
+      }
+    } catch (err) {
+      console.error("Помилка завантаження даних:", err);
+    } finally {
+      setIsLoading(false);
     }
-    loadVipProfile();
+  }
+
+  useEffect(() => {
+    loadDashboardData();
   }, [userId]);
 
   const totalStatsPoints = useMemo(() => stats.speed + stats.grip + stats.nitro, [stats]);
@@ -151,13 +142,10 @@ export default function HobotniaDashboard() {
     );
   }, [rooms, searchQuery]);
 
-  // Зміна повзунків з автоматичним збереженням в БД через POST /api/vip
   const handleStatSliderChange = async (statName: keyof typeof stats, value: number) => {
     const freshStats = { ...stats, [statName]: value };
     if (freshStats.speed + freshStats.grip + freshStats.nitro <= 100) {
       setStats(freshStats);
-      
-      // Відправляємо конфіг на сервер без затримок
       try {
         await fetch("/api/vip", {
           method: "POST",
@@ -174,25 +162,39 @@ export default function HobotniaDashboard() {
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p));
   };
 
-  const handleCreateRoom = () => {
+  // Створення кімнати через реальний POST /api/rooms з транзакцією в БД
+  const handleCreateRoom = async () => {
     if (!roomNameInput.trim() || balance < roomBetSelect) return;
 
-    const newRoom: RacingRoom = {
-      id: `room-${Date.now()}`,
-      name: roomNameInput.toUpperCase(),
-      bet: roomBetSelect,
-      playersCount: 1,
-      playersMax: roomPlayersSelect,
-      status: "Очікування",
-      trackName: roomTypeSelect === "Дрифт" ? "Токіо Спуск" : "Північне Кільце",
-      trackLength: roomTypeSelect === "Дрифт" ? "3.5 км" : "4.8 км",
-      trackType: roomTypeSelect,
-      turns: roomTypeSelect === "Дрифт" ? 18 : 8,
-      leaderboard: [{ pos: 1, name: "ХОБОТ", gap: "Лідер", isUser: true }]
-    };
+    try {
+      const res = await fetch("/api/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: roomNameInput,
+          bet: roomBetSelect,
+          playersMax: roomPlayersSelect,
+          trackType: roomTypeSelect,
+          userId: userId
+        })
+      });
 
-    setRooms(prev => [newRoom, ...prev]);
-    setBalance(prev => prev - roomBetSelect);
+      if (res.ok) {
+        const data = await res.json();
+        // Оновлюємо баланс та список кімнат локально з відповіді сервера
+        setBalance(data.balance);
+        // Перезавантажуємо список кімнат
+        const roomsUpdate = await fetch("/api/rooms");
+        if (roomsUpdate.ok) {
+          setRooms(await roomsUpdate.json());
+        }
+      } else {
+        const errData = await res.json();
+        alert(`Помилка створення лобі: ${errData.error}`);
+      }
+    } catch (err) {
+      console.error("Помилка при створенні кімнати:", err);
+    }
   };
 
   const handleSendChatMessage = () => {
@@ -267,7 +269,6 @@ export default function HobotniaDashboard() {
             <div className="flex items-center gap-4">
               <div className="bg-[#11111a] border border-zinc-800 rounded-lg px-3 py-1 flex items-center gap-3 font-mono text-xs">
                 <span className="text-emerald-400 font-bold">₴ {balance.toLocaleString('uk-UA')}</span>
-                <button onClick={() => setBalance(prev => prev + 5000)} className="bg-red-600 hover:bg-red-500 text-white p-0.5 rounded"><Plus className="h-3 w-3" /></button>
               </div>
 
               <div className="flex items-center gap-2.5 border-l border-zinc-800 pl-4">
@@ -315,23 +316,26 @@ export default function HobotniaDashboard() {
                     </div>
 
                     <div className="md:col-span-5 space-y-4">
-                      {filteredRooms.map(room => (
-                        <div key={room.id} className="bg-[#0c0c12] border border-zinc-900 rounded-xl p-4 space-y-3 relative overflow-hidden">
-                          <div className="flex justify-between">
-                            <div><span className="text-[10px] font-mono font-bold text-zinc-200 block">{room.name}</span><span className="text-[10px] text-zinc-500">Ставка: ₴ {room.bet} | {room.playersCount}/{room.playersMax}</span></div>
-                            <span className="text-[8px] bg-red-900/40 text-red-400 px-1.5 py-0.5 rounded font-black uppercase">{room.status}</span>
+                      {filteredRooms.length === 0 ? (
+                        <div className="text-center py-8 text-xs font-mono text-zinc-600 border border-dashed border-zinc-900 rounded-xl">Активних лобі не знайдено</div>
+                      ) : (
+                        filteredRooms.map(room => (
+                          <div key={room.id} className="bg-[#0c0c12] border border-zinc-900 rounded-xl p-4 space-y-3 relative overflow-hidden">
+                            <div className="flex justify-between">
+                              <div>
+                                <span className="text-[10px] font-mono font-bold text-zinc-200 block">{room.name}</span>
+                                <span className="text-[10px] text-zinc-500">Ставка: ₴ {room.bet} | {room.playersCount}/{room.playersMax}</span>
+                              </div>
+                              <span className="text-[8px] bg-emerald-950/40 text-emerald-400 px-1.5 py-0.5 rounded font-black uppercase">{room.status}</span>
+                            </div>
+                            <div className="p-2 bg-zinc-950 rounded-lg border border-zinc-900 text-[10px] text-zinc-400">
+                              <div className="text-zinc-200 font-bold">{room.trackName} ({room.trackLength})</div>
+                              <div>Тип: {room.trackType} | Повороти: {room.turns}</div>
+                              {room.creator && <div className="text-zinc-500 text-[9px] mt-1">Організатор: @{room.creator.username}</div>}
+                            </div>
                           </div>
-                          <div className="p-2 bg-zinc-950 rounded-lg border border-zinc-900 text-[10px] text-zinc-400">
-                            <div className="text-zinc-200 font-bold">{room.trackName} ({room.trackLength})</div>
-                            <div>Конфіг: {room.trackType} | Повороти: {room.turns}</div>
-                          </div>
-                          <div className="space-y-1 font-mono text-[11px]">
-                            {room.leaderboard.map((p, pi) => (
-                              <div key={pi} className={`flex justify-between px-2 py-0.5 rounded ${p.isUser ? 'bg-red-600/10 text-red-400 font-bold' : 'text-zinc-500'}`}><span>{p.pos}. {p.name}</span><span>{p.gap}</span></div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
