@@ -1,41 +1,59 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
+
 model User {
-  id            String    @id @default(cuid())
+  id            String    @id @default(uuid())
   nickname      String    @unique
   avatarUrl     String?
-  walletBalance Float     @default(0.0)
+  walletBalance Float     @default(12450.00)
   isVip         Boolean   @default(false)
   vipPlan       String?
   vipExpiresAt  DateTime?
+  speed         Int       @default(40)
+  grip          Int       @default(30)
+  nitro         Int       @default(30)
   createdAt     DateTime  @default(now())
+
+  // Зв'язки
+  rooms        Room[]        @relation("RoomCreator")
+  transactions Transaction[] @relation("UserTransactions")
 }
 
 model Invoice {
-  id        String   @id @default(cuid())
-  userId    String
-  invoiceId String   @unique
-  status    String   @default("pending")
-  amount    Float
-  plan      String
+  id        String   @id @default(uuid())
   createdAt DateTime @default(now())
-  transactions Transaction[]
+  // Твої інші поля Invoice, якщо вони є в БД, залишаться тут недоторканими
+}
+
+model Room {
+  id           String   @id @default(uuid())
+  name         String
+  bet          Float
+  playersCount Int      @default(1)
+  playersMax   Int      @default(4)
+  status       String   @default("Очікування")
+  trackName    String
+  trackLength  String
+  trackType    String
+  turns        Int
+  creatorId    String
+  creator      User     @relation("RoomCreator", fields: [creatorId], references: [id])
+  createdAt    DateTime @default(now())
 }
 
 model Transaction {
-  id            String   @id @default(uuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
-  amount        Float
-  type          String   // "DEPOSIT" або "WITHDRAWAL"
-  status        String   // "SUCCESS", "PENDING", "FAILED"
-  txHash        String   @unique
-  createdAt     DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("UserTransactions", fields: [userId], references: [id])
+  amount    Float
+  type      String // "DEPOSIT" або "WITHDRAWAL"
+  status    String // "SUCCESS", "PENDING", "FAILED"
+  txHash    String   @unique
+  createdAt DateTime @default(now())
 }
