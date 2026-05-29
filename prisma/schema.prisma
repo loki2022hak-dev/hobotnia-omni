@@ -8,30 +8,30 @@ generator client {
 }
 
 model User {
-  id             String        @id @default(uuid())
-  nickname       String        @unique
+  id             String          @id @default(uuid())
+  nickname       String          @unique
   avatarUrl      String?
-  walletBalance  Float         @default(12450.00)
-  isVip          Boolean       @default(false)
+  walletBalance  Float           @default(12450.00)
+  isVip          Boolean         @default(false)
   vipPlan        String?
   vipExpiresAt   DateTime?
   
-  // Базові характеристики (можуть бути збільшені покупками в Гаражі)
-  speed          Int           @default(40)
-  grip           Int           @default(30)
-  nitro          Int           @default(30)
+  speed          Int             @default(40)
+  grid          Int             @default(30) // Тюнінг
+  nitro          Int             @default(30)
   
-  // Прогрес та інвентар
-  exp            Int           @default(0)
-  level          Int           @default(1)
-  purchasedItems String[]      @default([]) // Список ID куплених запчастин
+  purchasedItems String[]        @default([])
+  usedPromos     String[]        @default([])
+  createdAt      DateTime        @default(now())
   
-  createdAt      DateTime      @default(now())
+  rooms          Room[]          @relation("RoomCreator")
+  transactions   Transaction[]   @relation("UserTransactions")
+  invoices       Invoice[]       @relation("UserInvoices")
+  messages       Message[]       // Глобальний чат
   
-  rooms          Room[]        @relation("RoomCreator")
-  transactions   Transaction[] @relation("UserTransactions")
-  invoices       Invoice[]     @relation("UserInvoices")
-  messages       Message[]
+  // Зв'язки для приватного месенджера
+  sentDMs        DirectMessage[] @relation("DMSender")
+  receivedDMs    DirectMessage[] @relation("DMReceiver")
 }
 
 model Message {
@@ -40,6 +40,16 @@ model Message {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+}
+
+model DirectMessage {
+  id         String   @id @default(uuid())
+  text       String
+  senderId   String
+  sender     User     @relation("DMSender", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("DMReceiver", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
 }
 
 model Transaction {
