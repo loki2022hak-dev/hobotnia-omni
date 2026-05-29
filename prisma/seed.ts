@@ -5,21 +5,21 @@ const prisma = new PrismaClient();
 async function main() {
   const defaultUserId = "default-user-id";
 
-  // Upsert гарантує: якщо юзер є — його не дублює, якщо немає — створює з нуля
+  // Використовуємо реальні поля: nickname, walletBalance, isVip тощо
   const user = await prisma.user.upsert({
     where: { id: defaultUserId },
     update: {},
     create: {
       id: defaultUserId,
-      username: "ХОБОТ",
-      balance: 12450.00,
-      speed: 40,
-      grip: 30,
-      nitro: 30,
+      nickname: "ХОБОТ",
+      walletBalance: 12450.00,
+      isVip: true,
+      vipPlan: "GOLD",
+      avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=80",
     },
   });
 
-  console.log(`[SEED] База даних успішно ініціалізована. Дефолтний юзер: ${user.username}`);
+  console.log(`[SEED] База даних успішно ініціалізована. Дефолтний юзер: ${user.nickname}`);
 }
 
 main()
