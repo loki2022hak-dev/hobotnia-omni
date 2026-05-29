@@ -4,13 +4,11 @@ import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
-// POST: Обробка автоматичного поповнення балансу через крипто-транзакції
 export async function POST(request: Request) {
   try {
     const signature = request.headers.get("x-crypto-signature");
     const bodyText = await request.text();
     
-    // Перевірка підпису мерчанта для безпеки (якщо активований ліміт в .env)
     const secret = process.env.CRYPTO_WEBHOOK_SECRET;
     if (secret && signature) {
       const computedSignature = crypto
@@ -26,27 +24,47 @@ export async function POST(request: Request) {
     const payload = JSON.parse(bodyText);
     const { userId, amount, status, transactionId } = payload;
 
-    // Валідуємо тільки успішно закриті мережею транзакції
     if (status !== "success" || !userId || !amount) {
-      return NextResponse.json({ message: "Транзакція проігнорована (немає успішного статусу)" }, { status: 200 });
+      return NextResponse.json({ message: "Транзакція проігнорована" }, { status: 200 });
     }
 
-    // Нараховуємо кошти на баланс ХОБОТА в базі даних
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
-        balance: {
-          increment: parseFloat(amount)
-        }
+    // Запускаємо транзакцію: оновлюємо баланс ТА створюємо лог транзакції одночасно
+    const result = await prisma.$transaction(async (tx) => {
+      // Перевіряємо чи транзакція вже не була оброблена раніше (захист від Double-Spending)
+      const existingTx = await tx.transaction.findUnique({
+        where: { txHash: transactionId }
+      });
+
+      if (existingTx) {
+        throw new Error("Ця транзакція вже була оброблена");
       }
+
+      // 1. Нараховуємо баланс
+      const updatedUser = await tx.user.update({
+        where: { id: userId },
+        data: { walletBalance: { increment: parseFloat(amount) } }
+      });
+
+      // 2. Створюємо запис в історії
+      await tx.transaction.create({
+        data: {
+          userId: userId,
+          amount: parseFloat(amount),
+          type: "DEPOSIT",
+          status: "SUCCESS",
+          txHash: transactionId
+        }
+      });
+
+      return updatedUser;
     });
 
     return NextResponse.json({
       status: "verified",
       transactionId: transactionId,
-      newBalance: updatedUser.balance
+      newBalance: result.walletBalance
     }, { status: 200 });
-  } catch (error) {
-    return NextResponse.json({ error: "Помилка обробки крипто-вебхуку" }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Помилка обробки крипто-вебхуку" }, { status: 500 });
   }
 }

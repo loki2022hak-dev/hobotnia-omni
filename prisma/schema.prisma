@@ -26,4 +26,16 @@ model Invoice {
   amount    Float
   plan      String
   createdAt DateTime @default(now())
+  transactions Transaction[]
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  amount        Float
+  type          String   // "DEPOSIT" або "WITHDRAWAL"
+  status        String   // "SUCCESS", "PENDING", "FAILED"
+  txHash        String   @unique
+  createdAt     DateTime @default(now())
 }
