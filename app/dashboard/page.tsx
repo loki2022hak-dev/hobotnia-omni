@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { 
   Home, MessageSquare, History, Users, Flag, Wallet, Shield, 
   Heart, MessageCircle, Plus, Search, UserCheck, 
-  Send, Award, Bell, ChevronDown, Check
+  Send, Award, Bell, ChevronDown, Check, ArrowDownLeft, ArrowUpRight
 } from "lucide-react";
 
 interface Post {
@@ -48,6 +48,15 @@ interface RacingRoom {
   creator?: { username: string };
 }
 
+interface DbTransaction {
+  id: string;
+  amount: number;
+  type: "DEPOSIT" | "WITHDRAWAL";
+  status: string;
+  txHash: string;
+  createdAt: string;
+}
+
 export default function HobotniaDashboard() {
   const [userId] = useState<string>("default-user-id");
   
@@ -79,6 +88,7 @@ export default function HobotniaDashboard() {
   ]);
 
   const [rooms, setRooms] = useState<RacingRoom[]>([]);
+  const [transactions, setTransactions] = useState<DbTransaction[]>([]);
 
   const [chats, setChats] = useState<ChatThread[]>([
     {
@@ -94,21 +104,25 @@ export default function HobotniaDashboard() {
     }
   ]);
 
-  // Стягуємо дані профілю та список кімнат з БД
   async function loadDashboardData() {
     try {
       setIsLoading(true);
-      // 1. VIP профіль
+      // 1. VIP профіль з історією транзакцій
       const vipRes = await fetch(`/api/vip?userId=${userId}`);
       if (vipRes.ok) {
         const vipData = await vipRes.json();
-        setBalance(vipData.user.balance);
+        setBalance(vipData.user.walletBalance);
         setStats({
           speed: vipData.user.speed,
           grip: vipData.user.grip,
           nitro: vipData.user.nitro
         });
         setVipTier(vipData.vipStatus);
+        
+        // За наявності транзакцій у профілі підтягуємо їх, інакше дефолт
+        if (vipData.user.transactions) {
+          setTransactions(vipData.user.transactions);
+        }
       }
 
       // 2. Активні кімнати з бази даних
@@ -162,7 +176,6 @@ export default function HobotniaDashboard() {
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p));
   };
 
-  // Створення кімнати через реальний POST /api/rooms з транзакцією в БД
   const handleCreateRoom = async () => {
     if (!roomNameInput.trim() || balance < roomBetSelect) return;
 
@@ -180,14 +193,8 @@ export default function HobotniaDashboard() {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        // Оновлюємо баланс та список кімнат локально з відповіді сервера
-        setBalance(data.balance);
-        // Перезавантажуємо список кімнат
-        const roomsUpdate = await fetch("/api/rooms");
-        if (roomsUpdate.ok) {
-          setRooms(await roomsUpdate.json());
-        }
+        // Оновлюємо весь дашборд (баланс, кімнати, транзакції) з актуальної БД
+        await loadDashboardData();
       } else {
         const errData = await res.json();
         alert(`Помилка створення лобі: ${errData.error}`);
@@ -331,7 +338,6 @@ export default function HobotniaDashboard() {
                             <div className="p-2 bg-zinc-950 rounded-lg border border-zinc-900 text-[10px] text-zinc-400">
                               <div className="text-zinc-200 font-bold">{room.trackName} ({room.trackLength})</div>
                               <div>Тип: {room.trackType} | Повороти: {room.turns}</div>
-                              {room.creator && <div className="text-zinc-500 text-[9px] mt-1">Організатор: @{room.creator.username}</div>}
                             </div>
                           </div>
                         ))
@@ -340,18 +346,11 @@ export default function HobotniaDashboard() {
                   </div>
                 </div>
 
-                {/* MESSENGER PANEL */}
-                <div className="xl:col-span-3">
-                  <div className="bg-[#0c0c12] border border-zinc-900 rounded-xl p-4 flex flex-col h-full min-h-[440px]">
-                    <span className="text-xs font-bold uppercase text-zinc-300 block border-b border-zinc-900 pb-2 mb-2">Чати</span>
-                    <div className="space-y-1 overflow-y-auto max-h-[120px] mb-2">
-                      {chats.map(c => (
-                        <div key={c.id} onClick={() => setActiveChatId(c.id)} className={`p-2 rounded flex items-center justify-between cursor-pointer border ${activeChatId === c.id ? 'bg-red-600/10 border-red-600/30' : 'border-transparent'}`}>
-                          <span className="text-xs text-zinc-300 font-bold">{c.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex-1 overflow-y-auto space-y-2 p-1 bg-zinc-950/40 rounded mb-2 max-h-[200px]">
+                {/* MESSENGER & LEDGER PANEL */}
+                <div className="xl:col-span-3 space-y-4">
+                  <div className="bg-[#0c0c12] border border-zinc-900 rounded-xl p-4 flex flex-col h-72">
+                    <span className="text-xs font-bold uppercase text-zinc-300 block border-b border-zinc-900 pb-2 mb-2">Чат лобі</span>
+                    <div className="flex-1 overflow-y-auto space-y-2 p-1 bg-zinc-950/40 rounded mb-2">
                       {activeChat.messages.map(m => (
                         <div key={m.id} className={`text-xs p-2 rounded max-w-[85%] ${m.sender === 'ХОБОТ' ? 'bg-red-600/10 border border-red-600/20 ml-auto' : 'bg-zinc-900'}`}>
                           <div className="text-[9px] text-zinc-500 font-mono flex justify-between mb-0.5"><span>{m.sender}</span><span>{m.time}</span></div>
@@ -362,6 +361,35 @@ export default function HobotniaDashboard() {
                     <div className="flex gap-1">
                       <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()} placeholder="Повідомлення..." className="w-full bg-zinc-950 border border-zinc-900 rounded px-2 py-1 text-xs text-white focus:outline-none" />
                       <button onClick={handleSendChatMessage} className="p-2 bg-red-600 rounded text-white"><Send className="h-3 w-3" /></button>
+                    </div>
+                  </div>
+
+                  {/* РЕАЛЬНА ІСТОРІЯ ТРАНЗАКЦІЙ З БД */}
+                  <div className="bg-[#0c0c12] border border-zinc-900 rounded-xl p-4 flex flex-col h-64 overflow-hidden">
+                    <span className="text-xs font-bold uppercase text-zinc-300 block border-b border-zinc-900 pb-2 mb-2">Історія операцій</span>
+                    <div className="flex-1 overflow-y-auto space-y-2 scrollbar-none pr-1">
+                      {transactions.length === 0 ? (
+                        <div className="text-center py-8 text-[11px] font-mono text-zinc-600">Історія транзакцій порожня</div>
+                      ) : (
+                        transactions.map(tx => (
+                          <div key={tx.id} className="p-2 bg-zinc-950 rounded border border-zinc-900 flex items-center justify-between text-xs font-mono">
+                            <div className="flex items-center gap-2">
+                              {tx.type === "DEPOSIT" ? (
+                                <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-500 bg-emerald-500/10 rounded p-0.5" />
+                              ) : (
+                                <ArrowUpRight className="h-3.5 w-3.5 text-red-500 bg-red-500/10 rounded p-0.5" />
+                              )}
+                              <div>
+                                <span className="text-zinc-300 block text-[10px] uppercase">{tx.type === "DEPOSIT" ? "Поповнення" : "Списання"}</span>
+                                <span className="text-[8px] text-zinc-600 block">{tx.txHash.substring(0, 14)}...</span>
+                              </div>
+                            </div>
+                            <span className={tx.type === "DEPOSIT" ? "text-emerald-400 font-bold" : "text-red-400"}>
+                              {tx.type === "DEPOSIT" ? "+" : "-"} ₴{tx.amount}
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
