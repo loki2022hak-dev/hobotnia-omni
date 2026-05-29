@@ -1,42 +1,63 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { SERVERSIDE_GARAGE_ITEMS } from "../config/items";
+
 const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
-  const { userId, itemId, price, statBoost } = await request.json();
-  
   try {
+    const { userId, itemId } = await request.json();
+
+    if (!userId || !itemId) {
+      return NextResponse.json({ error: "Невалідні параметри запиту" }, { status: 400 });
+    }
+
+    // Захист: беремо дані про ціну виключно з константи сервера, ігноруючи клієнт
+    const serverItem = SERVERSIDE_GARAGE_ITEMS[itemId];
+    if (!serverItem) {
+      return NextResponse.json({ error: "Такого ніштяка не існує в каталозі" }, { status: 400 });
+    }
+
+    const { price, stat, value } = serverItem;
+
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({ where: { id: userId } });
-      if (!user || user.walletBalance < price) throw new Error("Недостатньо коштів");
-      if (user.purchasedItems.includes(itemId)) throw new Error("Предмет уже куплено");
+      if (!user) throw new Error("Користувача не знайдено");
+      if (user.walletBalance < price) throw new Error("Недостатньо кешу на балансі ХОБОТНІ");
+      if (user.purchasedItems.includes(itemId)) throw new Error("Цей апгрейд уже встановлено на твою тачку");
+
+      // Динамічно оновлюємо потрібну характеристику
+      const updateData: any = {
+        walletBalance: { decrement: price },
+        purchasedItems: { push: itemId }
+      };
+
+      if (stat === "speed") updateData.speed = { increment: value };
+      if (stat === "grip") updateData.grip = { increment: value };
+      if (stat === "nitro") updateData.nitro = { increment: value };
 
       const updatedUser = await tx.user.update({
         where: { id: userId },
-        data: {
-          walletBalance: { decrement: price },
-          purchasedItems: { push: itemId },
-          // Бустимо стат, який дає деталь
-          ...(statBoost.type === 'speed' && { speed: { increment: statBoost.value } }),
-          ...(statBoost.type === 'grip' && { grip: { increment: statBoost.value } }),
-          ...(statBoost.type === 'nitro' && { nitro: { increment: statBoost.value } }),
-        }
+        data: updateData
       });
 
+      // Фіксуємо транзакцію в Ledger
       await tx.transaction.create({
         data: {
           userId,
           amount: price,
           type: "WITHDRAWAL",
           status: "SUCCESS",
-          txHash: `GARAGE-${itemId}-${Date.now()}`
+          txHash: `GARAGE-BUY-${itemId}-${Date.now()}`
         }
       });
 
       return updatedUser;
     });
-    return NextResponse.json(result);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+
+    return NextResponse.json({ success: true, user: result }, { status: 200 });
+
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || "Помилка транзакції гаражу" }, { status: 500 });
   }
 }
