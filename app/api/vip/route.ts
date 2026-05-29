@@ -1,40 +1,82 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
 
-const CRYPTO_BOT_TOKEN = process.env.CRYPTO_BOT_TOKEN || '';
+const prisma = new PrismaClient();
 
-export async function POST(req: Request) {
+// GET: Перевірка VIP-статусу користувача та його конфігурації
+export async function GET(request: Request) {
   try {
-    const { userId, plan, amount } = await req.json();
-    const response = await fetch('https://pay.crypt.bot/api/createInvoice', {
-      method: 'POST',
-      headers: {
-        'Crypto-Pay-API-Token': CRYPTO_BOT_TOKEN,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        asset: 'USDT',
-        amount: amount.toString(),
-        description: `Оплата VIP статусу [${plan}] на Хоботні`,
-        hidden_message: 'Ласкаво просимо до VIP Клубу! Твій статус активовано.',
-        payload: `${userId}_${plan}`,
-      }),
-    });
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
 
-    const data = await response.json();
-    if (!data.ok) throw new Error(data.error.name);
+    if (!userId) {
+      return NextResponse.json({ error: "Параметр userId обов'язковий" }, { status: 400 });
+    }
 
-    await prisma.invoice.create({
-      data: {
-        userId,
-        invoiceId: data.result.invoice_id.toString(),
-        amount: parseFloat(amount),
-        plan,
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        balance: true,
+        speed: true,
+        grip: true,
+        nitro: true,
+        createdAt: true
       }
     });
 
-    return NextResponse.json({ payUrl: data.result.pay_url });
+    if (!user) {
+      return NextResponse.json({ error: "Користувача не знайдено" }, { status: 404 });
+    }
+
+    // Повертаємо профіль з VIP-метриками (0% комісії, як на фронтенді)
+    return NextResponse.json({
+      status: "success",
+      vipStatus: "GOLD",
+      serviceFee: 0,
+      configMaxPoints: 100,
+      user: user
+    }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Помилка створення оплати' }, { status: 500 });
+    return NextResponse.json({ error: "Внутрішня помилка сервера" }, { status: 500 });
+  }
+}
+
+// POST: Оновлення кастомного пресету характеристик (Speed, Grip, Nitro <= 100)
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { userId, speed, grip, nitro } = body;
+
+    if (!userId || speed === undefined || grip === undefined || nitro === undefined) {
+      return NextResponse.json({ error: "Відсутні обов'язкові параметри конфігу" }, { status: 400 });
+    }
+
+    const totalPoints = speed + grip + nitro;
+    if (totalPoints > 100) {
+      return NextResponse.json({ error: "Перевищено ліміт точок конфігурації (Макс: 100)" }, { status: 400 });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        speed: parseInt(speed),
+        grip: parseInt(grip),
+        nitro: parseInt(nitro)
+      }
+    });
+
+    return NextResponse.json({
+      status: "success",
+      message: "Пресет VIP успішно синхронізовано",
+      stats: {
+        speed: updatedUser.speed,
+        grip: updatedUser.grip,
+        nitro: updatedUser.nitro
+      }
+    }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: "Не вдалося оновити VIP конфіг" }, { status: 500 });
   }
 }

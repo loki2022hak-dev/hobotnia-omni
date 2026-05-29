@@ -1,45 +1,52 @@
-import { NextResponse } from 'next/server';
-import crypto from 'crypto';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from "next/server";
+import { PrismaClient } from "@prisma/client";
+import crypto from "crypto";
 
-const CRYPTO_BOT_TOKEN = process.env.CRYPTO_BOT_TOKEN || '';
+const prisma = new PrismaClient();
 
-export async function POST(req: Request) {
+// POST: Обробка автоматичного поповнення балансу через крипто-транзакції
+export async function POST(request: Request) {
   try {
-    const bodyText = await req.text();
-    const signature = req.headers.get('crypto-pay-api-signature');
+    const signature = request.headers.get("x-crypto-signature");
+    const bodyText = await request.text();
     
-    const secret = crypto.createHash('sha256').update(CRYPTO_BOT_TOKEN).digest();
-    const hash = crypto.createHmac('sha256', secret).update(bodyText).digest('hex');
-    
-    if (hash !== signature) return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
-
-    const update = JSON.parse(bodyText);
-    
-    if (update.update_type === 'invoice_paid') {
-      const invoice = update.payload;
-      const [userId, plan] = invoice.payload.split('_');
-
-      let daysToAdd = 30;
-      if (plan === 'SEASON') daysToAdd = 90;
-      if (plan === 'LEGEND') daysToAdd = 365;
-      if (plan === 'FOUNDER') daysToAdd = 36500;
-
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + daysToAdd);
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: { isVip: true, vipPlan: plan, vipExpiresAt: expiresAt }
-      });
-
-      await prisma.invoice.update({
-        where: { invoiceId: invoice.invoice_id.toString() },
-        data: { status: 'paid' }
-      });
+    // Перевірка підпису мерчанта для безпеки (якщо активований ліміт в .env)
+    const secret = process.env.CRYPTO_WEBHOOK_SECRET;
+    if (secret && signature) {
+      const computedSignature = crypto
+        .createHmac("sha256", secret)
+        .update(bodyText)
+        .digest("hex");
+        
+      if (computedSignature !== signature) {
+        return NextResponse.json({ error: "Невалідний підпис транзакції" }, { status: 401 });
+      }
     }
-    return NextResponse.json({ ok: true });
+
+    const payload = JSON.parse(bodyText);
+    const { userId, amount, status, transactionId } = payload;
+
+    // Валідуємо тільки успішно закриті мережею транзакції
+    if (status !== "success" || !userId || !amount) {
+      return NextResponse.json({ message: "Транзакція проігнорована (немає успішного статусу)" }, { status: 200 });
+    }
+
+    // Нараховуємо кошти на баланс ХОБОТА в базі даних
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        balance: {
+          increment: parseFloat(amount)
+        }
+      }
+    });
+
+    return NextResponse.json({
+      status: "verified",
+      transactionId: transactionId,
+      newBalance: updatedUser.balance
+    }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Webhook Error' }, { status: 500 });
+    return NextResponse.json({ error: "Помилка обробки крипто-вебхуку" }, { status: 500 });
   }
 }
