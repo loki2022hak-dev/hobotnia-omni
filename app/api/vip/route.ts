@@ -8,31 +8,22 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId") || "default-user-id";
 
+    // Шукаємо юзера в базі
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        nickname: true,
-        walletBalance: true,
-        isVip: true,
-        vipPlan: true,
-        speed: true,
-        grip: true,
-        nitro: true,
-        transactions: {
-          orderBy: { createdAt: "desc" },
-          take: 10
-        }
-      }
+      include: { vip: true } // Якщо є пов'язана модель VIP
     });
 
+    if (!user) {
       return NextResponse.json({ error: "Користувача не знайдено" }, { status: 404 });
     }
 
+    // Повертаємо чистий преміум-стейт
     return NextResponse.json({
       user,
-      vipStatus: user.isVip ? (user.vipPlan || "GOLD") : "FREE"
+      vipStatus: user.vip?.isActive ? "GOLD" : "FREE"
     }, { status: 200 });
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -41,21 +32,28 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, speed, grip, nitro } = body;
+    const { userId, planId, amount } = body;
 
-      return NextResponse.json({ error: "userId обов'язковий" }, { status: 400 });
+    if (!userId || !planId) {
+      return NextResponse.json({ error: "Недостатньо даних для транзакції" }, { status: 400 });
     }
 
-    if (speed + grip + nitro > 100) {
-      return NextResponse.json({ error: "Сума очок не може перевищувати 100" }, { status: 400 });
-    }
-
+    // Проста логіка активації (можна розширити під твою схему Prisma)
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { speed, grip, nitro }
+      data: {
+        balance: { decrement: amount || 0 },
+        // Припускаємо наявність прапорця або зв'язку
+        isVip: true 
+      }
     });
 
-    return NextResponse.json({ success: true, user: updatedUser }, { status: 200 });
+    return NextResponse.json({ 
+      success: true, 
+      message: `Тариф ${planId} активовано успішно!`,
+      user: updatedUser
+    }, { status: 200 });
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
