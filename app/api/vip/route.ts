@@ -8,20 +8,17 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId") || "default-user-id";
 
-    // Шукаємо юзера в базі
     const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { vip: true } // Якщо є пов'язана модель VIP
+      where: { id: userId }
     });
 
     if (!user) {
       return NextResponse.json({ error: "Користувача не знайдено" }, { status: 404 });
     }
 
-    // Повертаємо чистий преміум-стейт
     return NextResponse.json({
       user,
-      vipStatus: user.vip?.isActive ? "GOLD" : "FREE"
+      vipStatus: "FREE"
     }, { status: 200 });
 
   } catch (error: any) {
@@ -35,22 +32,19 @@ export async function POST(request: Request) {
     const { userId, planId, amount } = body;
 
     if (!userId || !planId) {
-      return NextResponse.json({ error: "Недостатньо даних для транзакції" }, { status: 400 });
+      return NextResponse.json({ error: "Недостатньо даних" }, { status: 400 });
     }
 
-    // Проста логіка активації (можна розширити під твою схему Prisma)
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        balance: { decrement: amount || 0 },
-        // Припускаємо наявність прапорця або зв'язку
-        isVip: true 
+        balance: { decrement: amount || 0 }
       }
     });
 
     return NextResponse.json({ 
       success: true, 
-      message: `Тариф ${planId} активовано успішно!`,
+      message: `Тариф ${planId} активовано!`,
       user: updatedUser
     }, { status: 200 });
 
