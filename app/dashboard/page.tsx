@@ -95,9 +95,7 @@ export default function HobotniaEliteEdition() {
   };
 
   const loadData = async () => {
-    // ЗАЛІЗОБЕТОННИЙ ФОЛБЕК: якщо сервер лежить, інтерфейс все одно відкриється з демо-даними
     const defaultProfile = { nickname: "Hobot_Gamer", balance: 12450.00, purchasedItems: [], vip: { isActive: true } };
-    
     try {
       const uRes = await fetch(`/api/user/profile?userId=${userId}`);
       if (uRes.ok) {
@@ -175,7 +173,7 @@ export default function HobotniaEliteEdition() {
     return (
       <div className="fixed inset-0 bg-[#020203] z-50 flex flex-col items-center justify-center p-4 select-none h-screen overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,0,0,0.03)_0%,transparent_80%)]" />
-        <div className="relative mb-12 animate-fade-in-down">
+        <div className="relative mb-12">
           <h1 className="text-7xl md:text-9xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-zinc-100 via-zinc-400 to-zinc-600 uppercase drop-shadow-[0_0_25px_rgba(220,38,38,0.5)]">
             ХОБОТНЯ
           </h1>
@@ -226,8 +224,8 @@ export default function HobotniaEliteEdition() {
           <p className="text-3xl md:text-5xl font-black italic text-white tracking-tight leading-relaxed animate-quote-line3 opacity-0">
             кому ти довіряв свій руль.
           </p>
-          <div className="h-[3px] w-28 bg-red-600 mx-auto mt-10 animate-fade-in-delayed opacity-0" />
-          <p className="text-[10px] font-mono tracking-widest text-zinc-600 uppercase animate-fade-in-delayed opacity-0">Синхронізація з серверами синдикату...</p>
+          <div className="h-[3px] w-28 bg-red-600 mx-auto mt-10" />
+          <p className="text-[10px] font-mono tracking-widest text-zinc-600 uppercase">Синхронізація з серверами синдикату...</p>
         </div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.04)_0%,transparent_70%)] -z-10" />
       </div>
@@ -287,7 +285,7 @@ export default function HobotniaEliteEdition() {
                   <div className="flex items-center gap-2 text-xs font-black uppercase text-zinc-400"><Camera className="text-red-500" /> Поділитися стилем синдикату</div>
                   <div className="grid grid-cols-2 gap-3">
                      <input type="text" placeholder="URL зображення..." value={newPostImg} onChange={e => setNewPostImg(e.target.value)} className="bg-black border border-zinc-800 text-xs rounded-xl px-4 py-2.5 text-white font-mono" />
-                     <input type="text" placeholder="Підпис до фото..." value={newPostText} onChange={e => setNewPostText(e.target.value)} className="bg-black border border-zinc-800 text-xs rounded-xl px-4 py-2.5 text-white" />
+                     <input type="text" placeholder="Підпис до photo..." value={newPostText} onChange={e => setNewPostText(e.target.value)} className="bg-black border border-zinc-800 text-xs rounded-xl px-4 py-2.5 text-white" />
                   </div>
                   <button onClick={handleCreatePost} className="w-full py-3 bg-zinc-100 hover:bg-white text-black text-xs font-black uppercase rounded-xl">Закинути в стрічку</button>
                </div>
@@ -385,7 +383,7 @@ export default function HobotniaEliteEdition() {
       </main>
 
       {activeStoryModal && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4 animate-fade-in" onClick={() => setActiveStoryModal(null)}>
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4" onClick={() => setActiveStoryModal(null)}>
            <div className="max-w-md w-full relative space-y-2" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center text-xs font-mono text-zinc-400 px-2">
                  <span>@{activeStoryModal.user?.nickname || "ХОБОТ"}</span>
