@@ -26,7 +26,6 @@ export async function GET(request: Request) {
       }
     });
 
-    if (!user) {
       return NextResponse.json({ error: "Користувача не знайдено" }, { status: 404 });
     }
 
@@ -44,7 +43,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { userId, speed, grip, nitro } = body;
 
-    if (!userId) {
       return NextResponse.json({ error: "userId обов'язковий" }, { status: 400 });
     }
 
