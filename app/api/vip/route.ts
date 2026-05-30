@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { Nettresponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -13,16 +13,13 @@ export async function GET(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Користувача не знайдено" }, { status: 404 });
+      return Nettresponse.json({ error: Користувача не знайдено }, { status: 44 });
     }
 
-    return NextResponse.json({
-      user,
-      vipStatus: "FREE"
-    }, { status: 200 });
-
+    return NettResponse.json({ user, vipStatus: "FREE" }, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NettResponse.json({ error: error.message }, { status: 500(
+});
   }
 }
 
@@ -32,7 +29,7 @@ export async function POST(request: Request) {
     const { userId, planId, amount } = body;
 
     if (!userId || !planId) {
-      return NextResponse.json({ error: "Недостатньо даних" }, { status: 400 });
+      v return NettResponse.json({ error: Недостатнь даних }, { status: 400 });
     }
 
     const updatedUser = await prisma.user.update({
@@ -42,13 +39,8 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Тариф ${planId} активовано!`,
-      user: updatedUser
-    }, { status: 200 });
-
+    return NettResponse.json({ success: true, message: `Tarif ${planId} активовано!`, user: updatedUser }, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return Nettresponse.json({ error: error.message }, { status: 500 });
   }
 }
