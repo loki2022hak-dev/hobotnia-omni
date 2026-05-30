@@ -95,20 +95,35 @@ export default function HobotniaEliteEdition() {
   };
 
   const loadData = async () => {
+    // ЗАЛІЗОБЕТОННИЙ ФОЛБЕК: якщо сервер лежить, інтерфейс все одно відкриється з демо-даними
+    const defaultProfile = { nickname: "Hobot_Gamer", balance: 12450.00, purchasedItems: [], vip: { isActive: true } };
+    
     try {
       const uRes = await fetch(`/api/user/profile?userId=${userId}`);
       if (uRes.ok) {
         const data = await uRes.json();
-        if (data && data.profile) setUser(data.profile);
-        else throw new Error();
-      } else throw new Error();
+        setUser(data?.profile || defaultProfile);
+      } else {
+        setUser(defaultProfile);
+      }
     } catch (err) {
-      setUser({ nickname: "Hobot_Gamer", balance: 12450.00, purchasedItems: [], vip: { isActive: true } });
+      setUser(defaultProfile);
     }
+
     try {
-      fetch("/api/rooms").then(r => r.ok && r.json()).then(setRooms).catch(() => {});
-      fetch("/api/instagram/posts").then(r => r.ok && r.json()).then(setPosts).catch(() => {});
-      fetch("/api/instagram/stories").then(r => r.ok && r.json()).then(setStories).catch(() => {});
+      const pRes = await fetch("/api/instagram/posts");
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        setPosts(Array.isArray(pData) ? pData : []);
+      }
+    } catch (e) {}
+
+    try {
+      const sRes = await fetch("/api/instagram/stories");
+      if (sRes.ok) {
+        const sData = await sRes.json();
+        setStories(Array.isArray(sData) ? sData : []);
+      }
     } catch (e) {}
   };
 
@@ -256,7 +271,7 @@ export default function HobotniaEliteEdition() {
                      <span className="text-[10px] mt-1 text-zinc-500 font-mono truncate w-16 text-center">Додати</span>
                      <input type="text" placeholder="URL" value={newStoryImg} onChange={e => setNewStoryImg(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
                   </div>
-                  {stories.map((story: any) => (
+                  {stories && stories.map((story: any) => (
                     <div key={story.id} onClick={() => setActiveStoryModal(story)} className="flex flex-col items-center min-w-[70px] cursor-pointer">
                        <div className="w-14 h-14 p-0.5 rounded-full bg-gradient-to-tr from-amber-500 via-red-600 to-purple-600">
                           <div className="w-full h-full bg-black rounded-full flex items-center justify-center font-bold text-xs font-mono text-white">
@@ -278,7 +293,7 @@ export default function HobotniaEliteEdition() {
                </div>
 
                <div className="space-y-6">
-                  {posts.map((post: any) => (
+                  {posts && posts.map((post: any) => (
                     <div key={post.id} className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
                        <div className="p-4 flex items-center gap-3 bg-black/20 border-b border-zinc-800/50 font-mono">
                           <span className="text-xs font-black text-white">@{post.user?.nickname || "anonymous"}</span>
