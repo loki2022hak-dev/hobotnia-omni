@@ -1,400 +1,294 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { 
-  Flag, Wallet, Zap, ShoppingCart, Star, Flame, Volume2, VolumeX, Heart, Camera, PlusCircle, LayoutGrid, ShieldAlert
+  Home, Compass, Layers, MessageSquare, Users, Flag, Trophy, Wallet, Star, Settings, 
+  Search, Bell, Plus, Image, Send, Heart, MessageCircle, Share2, Shield, Play
 } from "lucide-react";
 
-export default function HobotniaEliteEdition() {
-  const [userId] = useState("default-user-id");
-  const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"instagram" | "race" | "garage" | "vip">("instagram");
+export default function HobotniaDashboard() {
+  const [activeTab, setActiveTab] = useState("home");
   
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [stories, setStories] = useState<any[]>([]);
-  
-  const [introStep, setIntroStep] = useState<"check" | "trigger" | "video" | "quote" | "game">("check");
-  const [isMuted, setIsMuted] = useState(false);
-  
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  const [raceStatus, setRaceStatus] = useState<"idle" | "racing" | "finished">("idle");
-  const [logs, setLogs] = useState<string[]>([]);
-
-  const [activeStoryModal, setActiveStoryModal] = useState<any>(null);
-  const [newPostText, setNewPostText] = useState("");
-  const [newPostImg, setNewPostImg] = useState("");
-  const [newStoryImg, setNewStoryImg] = useState("");
-
-  const vipPlans = [
-    { id: "vip_week", name: "WEEKLY PASS", price: 150, period: "7 днів", desc: "Швидкий старт, +5% до виграшу, префікс у рації" },
-    { id: "vip_month", name: "MONTHLY BOSS", price: 350, period: "30 днів", desc: "Вибір авторитетів, +15% до виграшу, пріоритет у кімнатах" },
-    { id: "vip_forever", name: "INFINITE HUSTLE", price: 990, period: "Назавжди", desc: "Повний безліміт, +25% до каси, золотий нік" }
+  // Імітація реальних даних з макету для залізобетонного відображення
+  const stories = [
+    { id: 1, name: "Toretto", active: true },
+    { id: 2, name: "NightRider", active: true },
+    { id: 3, name: "DriftKing", active: true },
+    { id: 4, name: "MotoLife", active: true },
+    { id: 5, name: "SpeedDemon", active: true },
+    { id: 6, name: "Ghost", active: true },
+    { id: 7, name: "BikerBoy", active: true },
   ];
-
-  const garageItems = [
-    { id: "turbo_v1", name: "Турбіна Garrett", price: 15000, desc: "+10 до Швидкості" },
-    { id: "tires_pro", name: "Сліки Michelin", price: 8000, desc: "+15 до Зчеплення" }
-  ];
-
-  useEffect(() => {
-    if (introStep === "check") {
-      const hasSeenIntro = localStorage.getItem("hobotnia_intro_seen");
-      if (hasSeenIntro) {
-        setIntroStep("game");
-      } else {
-        setIntroStep("trigger");
-      }
-    }
-  }, [introStep]);
-
-  useEffect(() => {
-    if (introStep === "video") {
-      const t = setTimeout(() => {
-        setIntroStep("quote");
-        if (audioRef.current) audioRef.current.volume = 0.2;
-      }, 9500);
-      return () => clearTimeout(t);
-    }
-    if (introStep === "quote") {
-      const t = setTimeout(() => {
-        setIntroStep("game");
-        localStorage.setItem("hobotnia_intro_seen", "true");
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = "";
-        }
-      }, 8500);
-      return () => clearTimeout(t);
-    }
-  }, [introStep]);
-
-  const startCinematic = () => {
-    setIntroStep("video");
-    setTimeout(() => {
-      if (videoRef.current) {
-        videoRef.current.play().catch(() => {});
-        videoRef.current.muted = false;
-      }
-      if (audioRef.current) {
-        audioRef.current.volume = 0.7;
-        audioRef.current.play().catch(() => {});
-      }
-      setIsMuted(false);
-    }, 150);
-  };
-
-  const skipIntro = () => {
-    setIntroStep("game");
-    localStorage.setItem("hobotnia_intro_seen", "true");
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = "";
-    }
-  };
-
-  const loadData = async () => {
-    const defaultProfile = { nickname: "Hobot_Gamer", balance: 12450.00, purchasedItems: [], vip: { isActive: true } };
-    try {
-      const uRes = await fetch(`/api/user/profile?userId=${userId}`);
-      if (uRes.ok) {
-        const data = await uRes.json();
-        setUser(data?.profile || defaultProfile);
-      } else {
-        setUser(defaultProfile);
-      }
-    } catch (err) {
-      setUser(defaultProfile);
-    }
-
-    try {
-      const pRes = await fetch("/api/instagram/posts");
-      if (pRes.ok) {
-        const pData = await pRes.json();
-        setPosts(Array.isArray(pData) ? pData : []);
-      }
-    } catch (e) {}
-
-    try {
-      const sRes = await fetch("/api/instagram/stories");
-      if (sRes.ok) {
-        const sData = await sRes.json();
-        setStories(Array.isArray(sData) ? sData : []);
-      }
-    } catch (e) {}
-  };
-
-  useEffect(() => { loadData(); }, []);
-
-  const handleBuyVip = async (plan: any) => {
-    try {
-      const res = await fetch("/api/vip/buy", { method: "POST", body: JSON.stringify({ userId, planId: plan.id, amount: plan.price }) });
-      const data = await res.json();
-      alert(data.message || data.error || "Статус оновлено");
-      loadData();
-    } catch (e) {
-      alert(`Локальний режим: статус ${plan.name} активовано!`);
-    }
-  };
-
-  const handleCreatePost = async () => {
-    if (!newPostImg.trim()) return;
-    try {
-      const res = await fetch("/api/instagram/posts", { method: "POST", body: JSON.stringify({ userId, imageUrl: newPostImg, caption: newPostText }) });
-      if (res.ok) { setNewPostImg(""); setNewPostText(""); loadData(); }
-    } catch (e) {
-      setPosts([{ id: Date.now().toString(), imageUrl: newPostImg, caption: newPostText, likes: 0, user: { nickname: user.nickname } }, ...posts]);
-      setNewPostImg(""); setNewPostText("");
-    }
-  };
-
-  const handleLikePost = (postId: string) => {
-    setPosts(posts.map(p => p.id === postId ? { ...p, likes: p.likes + 1 } : p));
-    fetch("/api/instagram/posts/like", { method: "POST", body: JSON.stringify({ postId }) }).catch(() => {});
-  };
-
-  const handleStartServerRace = (room: any) => {
-    setRaceStatus("racing");
-    setLogs(["⚡ [СЕРВЕР]: Запуск телеметрії...", "🏁 Гонщики вишикувалися на старті..."]);
-    setTimeout(() => {
-      setLogs([
-        "⚡ [СЕРВЕР]: Запуск телеметрії...",
-        "🏁 Гонщики вишикувалися на старті...",
-        "🔥 Зчеплення зловило асфальт!",
-        `🏆 Заїзд завершено! Переміг @${user.nickname}`,
-        `💰 Каса + ₴ ${room.bet * 2} зараховано на баланс синдикату.`
-      ]);
-      setRaceStatus("finished");
-    }, 2500);
-  };
-
-  if (introStep === "check" || introStep === "trigger") {
-    return (
-      <div className="fixed inset-0 bg-[#020203] z-50 flex flex-col items-center justify-center p-4 select-none h-screen overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,0,0,0.03)_0%,transparent_80%)]" />
-        <div className="relative mb-12">
-          <h1 className="text-7xl md:text-9xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-zinc-100 via-zinc-400 to-zinc-600 uppercase drop-shadow-[0_0_25px_rgba(220,38,38,0.5)]">
-            ХОБОТНЯ
-          </h1>
-          <h1 className="absolute inset-0 text-7xl md:text-9xl font-black italic tracking-tighter text-red-600 uppercase blur-[20px] opacity-70 -z-10">
-            ХОБОТНЯ
-          </h1>
-        </div>
-        <div className="text-center space-y-6 max-w-sm relative z-10 font-mono">
-          <p className="text-[10px] text-zinc-600 uppercase tracking-widest animate-pulse">Ініціалізація зашифрованого протоколу синдикату...</p>
-          <div className="pt-4 h-[70px]">
-            {introStep === "trigger" && (
-              <button onClick={startCinematic} className="w-full py-4 bg-gradient-to-r from-red-700 to-red-600 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_0_40px_rgba(220,38,38,0.4)] hover:scale-[1.02] active:scale-[0.98]">
-                Увійти в синдикат
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (introStep === "video") {
-    return (
-      <div className="fixed inset-0 bg-black z-50 overflow-hidden flex items-center justify-center select-none">
-        <audio ref={audioRef} src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" loop />
-        <video ref={videoRef} src="https://assets.mixkit.co/videos/preview/mixkit-motorcyclist-riding-fast-on-a-highway-at-night-40348-large.mp4" className="absolute w-screen h-screen object-cover scale-105 pointer-events-none" loop playsInline autoPlay />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-black/80" />
-        <div className="absolute bottom-10 right-10 flex gap-4 z-50">
-          <button onClick={() => { if (audioRef.current && videoRef.current) { setIsMuted(!isMuted); audioRef.current.muted = !audioRef.current.muted; videoRef.current.muted = !videoRef.current.muted; } }} className="p-3.5 bg-black/50 text-white rounded-full backdrop-blur-md border border-white/10">
-            {isMuted ? <VolumeX className="h-5 w-5 text-red-500" /> : <Volume2 className="h-5 w-5 text-emerald-400" />}
-          </button>
-          <button onClick={skipIntro} className="px-6 py-3.5 bg-red-600 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-2xl">Пропустити</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (introStep === "quote") {
-    return (
-      <div className="fixed inset-0 bg-[#020203] z-50 flex flex-col items-center justify-center p-6 select-none animate-fade-in font-sans">
-        <div className="max-w-4xl text-center space-y-8 relative z-10 h-screen flex flex-col items-center justify-center">
-          <p className="text-3xl md:text-5xl font-black italic text-zinc-100 tracking-tight leading-relaxed animate-quote-line1 opacity-0">
-            «Гроші приходять і йдуть...»
-          </p>
-          <p className="text-xl md:text-2xl font-bold italic text-zinc-400 tracking-tight leading-relaxed animate-quote-line2 opacity-0">
-            А зрада... зрада завжди б'є в спину руками тих,
-          </p>
-          <p className="text-3xl md:text-5xl font-black italic text-white tracking-tight leading-relaxed animate-quote-line3 opacity-0">
-            кому ти довіряв свій руль.
-          </p>
-          <div className="h-[3px] w-28 bg-red-600 mx-auto mt-10" />
-          <p className="text-[10px] font-mono tracking-widest text-zinc-600 uppercase">Синхронізація з серверами синдикату...</p>
-        </div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.04)_0%,transparent_70%)] -z-10" />
-      </div>
-    );
-  }
-
-  if (!user) return <div className="h-screen bg-[#050507] flex items-center justify-center font-mono text-red-600">ЗАВАНТАЖЕННЯ БАЗИ...</div>;
 
   return (
-    <div className="min-h-screen bg-[#050507] text-zinc-100 flex font-sans animate-fade-in">
-      <nav className="w-20 bg-black border-r border-zinc-900 flex flex-col items-center py-8 gap-8">
-        <div className="text-red-600 font-black text-2xl italic">Х</div>
-        <button onClick={() => setActiveTab("instagram")} className={`p-3 rounded-xl ${activeTab === 'instagram' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}><LayoutGrid /></button>
-        <button onClick={() => setActiveTab("race")} className={`p-3 rounded-xl ${activeTab === 'race' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}><Flag /></button>
-        <button onClick={() => setActiveTab("garage")} className={`p-3 rounded-xl ${activeTab === 'garage' ? 'bg-red-600 text-white' : 'text-zinc-600'}`}><ShoppingCart /></button>
-        <button onClick={() => setActiveTab("vip")} className={`p-3 rounded-xl ${activeTab === 'vip' ? 'bg-amber-500 text-black font-black' : 'text-zinc-600'}`}><Star /></button>
-      </nav>
-
-      <main className="flex-1 flex flex-col">
-        <header className="h-16 border-b border-zinc-900 px-8 flex items-center justify-between bg-black/50 backdrop-blur-md">
-          <div className="flex gap-4 items-center">
-            <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
-               <Wallet className="h-4 w-4 text-emerald-400" />
-               <span className="text-emerald-400 font-mono font-bold">₴ {user.balance.toLocaleString()}</span>
-            </div>
+    <div className="min-h-screen bg-[#0a0a0c] text-[#e4e4e7] flex font-sans antialiased selection:bg-red-600 selection:text-white">
+      
+      {/* ЛІВА НАВІГАЦІЙНА ПАНЕЛЬ (SIDEBAR) */}
+      <aside className="w-64 bg-[#020203] border-r border-zinc-900 flex flex-col justify-between shrink-0">
+        <div>
+          <div className="p-6 flex flex-col gap-1 border-b border-zinc-900">
+            <h1 className="text-3xl font-black italic tracking-tighter text-white uppercase">
+              ХОБОТНЯ
+            </h1>
+            <span className="text-[9px] font-mono tracking-widest text-red-500 font-bold uppercase">
+              Живи на швидкості
+            </span>
           </div>
-          <div className="text-xs font-bold italic text-zinc-400 flex items-center gap-2">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span>@{user.nickname}</span>
+          
+          <nav className="p-4 space-y-1.5">
+            <p className="px-3 text-[10px] font-mono uppercase tracking-wider text-zinc-600 mb-2">Соцмережа</p>
+            <button onClick={() => setActiveTab("home")} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono transition-all ${activeTab === "home" ? "bg-gradient-to-r from-red-950/40 to-red-900/20 text-red-500 border-l-2 border-red-500" : "text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200"}`}>
+              <Home className="h-4 w-4" /> Головна
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+              <Compass className="h-4 w-4" /> Стрічка
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+              <Layers className="h-4 w-4" /> Історії
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+              <MessageSquare className="h-4 w-4" /> Повідомлення <span className="ml-auto bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-sans">3</span>
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+              <Users className="h-4 w-4" /> Друзі
+            </button>
+
+            <p className="px-3 text-[10px] font-mono uppercase tracking-wider text-zinc-600 pt-4 mb-2">Онлайн-перегони</p>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+              <Flag className="h-4 w-4 text-red-500" /> Перегони
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+              <Trophy className="h-4 w-4 text-amber-500" /> Топ перегонів
+            </button>
+
+            <p className="px-3 text-[10px] font-mono uppercase tracking-wider text-zinc-600 pt-4 mb-2">Гаманець</p>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+              <Wallet className="h-4 w-4" /> Гаманець
+            </button>
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+              <Star className="h-4 w-4 text-amber-400" /> VIP Клуб
+            </button>
+          </nav>
+        </div>
+
+        <div className="p-4 border-t border-zinc-900">
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-200">
+            <Settings className="h-4 w-4" /> Налаштування
+          </button>
+        </div>
+      </aside>
+
+      {/* ЦЕНТРАЛЬНА ТА ПРАВА ЧАСТИНИ */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        
+        {/* ХЕДЕР (ВЕРХНЯ ПАНЕЛЬ) */}
+        <header className="h-16 bg-[#020203] border-b border-zinc-900 px-8 flex items-center justify-between shrink-0">
+          <div className="relative w-80">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+            <input type="text" placeholder="Пошук..." className="w-full bg-[#0a0a0c] border border-zinc-900 rounded-xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-red-600 font-mono transition-all" />
+          </div>
+          
+          <div className="flex items-center gap-6">
+            <button className="relative p-1.5 text-zinc-400 hover:text-zinc-200">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full" />
+            </button>
+            
+            <div className="flex items-center gap-2 bg-[#0a0a0c] border border-zinc-800 px-4 py-1.5 rounded-xl font-mono text-xs font-bold text-amber-400">
+              <span>₴ 12 450.00</span>
+              <button className="ml-1 bg-red-600 text-white rounded-md p-0.5 hover:bg-red-700"><Plus className="h-3 w-3" /></button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-xs font-bold font-mono text-zinc-200">ХОБОТ</div>
+                <div className="text-[9px] font-bold text-amber-500 font-mono tracking-widest">VIP GOLD</div>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-red-600 p-0.5 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                <div className="w-full h-full bg-[#0a0a0c] rounded-full flex items-center justify-center font-black text-xs text-white">ХБ</div>
+              </div>
+            </div>
           </div>
         </header>
 
-        <div className="p-8 overflow-y-auto h-[calc(100vh-64px)]">
-          {activeTab === "instagram" && (
-            <div className="max-w-2xl mx-auto space-y-8">
-               <div className="bg-zinc-950 p-4 border border-zinc-900 rounded-2xl flex gap-4 items-center overflow-x-auto">
-                  <div className="flex flex-col items-center min-w-[70px] relative">
-                     <div className="w-14 h-14 bg-zinc-800 rounded-full flex items-center justify-center border border-dashed border-zinc-700 hover:border-red-500 cursor-pointer">
-                        <PlusCircle className="h-6 w-6 text-zinc-500" />
-                     </div>
-                     <span className="text-[10px] mt-1 text-zinc-500 font-mono truncate w-16 text-center">Додати</span>
-                     <input type="text" placeholder="URL" value={newStoryImg} onChange={e => setNewStoryImg(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
+        {/* ОСНОВНИЙ КОНТЕНТ (СКРОЛ) */}
+        <div className="flex-1 flex overflow-hidden">
+          
+          {/* ЛЕНТА (ЦЕНТР) */}
+          <div className="flex-1 p-6 overflow-y-auto space-y-6">
+            
+            {/* БЛОК ІСТОРІЙ */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-xs font-black uppercase font-mono tracking-wider text-zinc-400">Історії</h3>
+                <button className="text-[10px] font-mono text-zinc-600 uppercase hover:text-zinc-400">Дивитися всі</button>
+              </div>
+              <div className="bg-[#020203] border border-zinc-900/60 p-4 rounded-2xl flex gap-4 items-center overflow-x-auto shadow-sm">
+                <div className="flex flex-col items-center min-w-[65px] group cursor-pointer">
+                  <div className="w-12 h-12 rounded-full border border-dashed border-zinc-800 flex items-center justify-center bg-zinc-900/40 group-hover:border-red-500 transition-all">
+                    <Plus className="h-5 w-5 text-zinc-600 group-hover:text-zinc-400" />
                   </div>
-                  {stories && stories.map((story: any) => (
-                    <div key={story.id} onClick={() => setActiveStoryModal(story)} className="flex flex-col items-center min-w-[70px] cursor-pointer">
-                       <div className="w-14 h-14 p-0.5 rounded-full bg-gradient-to-tr from-amber-500 via-red-600 to-purple-600">
-                          <div className="w-full h-full bg-black rounded-full flex items-center justify-center font-bold text-xs font-mono text-white">
-                             {story.user?.nickname?.substring(0, 2).toUpperCase() || "HB"}
-                          </div>
-                       </div>
-                       <span className="text-[10px] mt-1 text-zinc-300 font-mono truncate w-16 text-center">@{story.user?.nickname}</span>
+                  <span className="text-[9px] mt-1.5 text-zinc-500 font-mono font-bold">Ваша історія</span>
+                </div>
+                {stories.map(s => (
+                  <div key={s.id} className="flex flex-col items-center min-w-[65px] cursor-pointer">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-red-600 via-amber-500 to-red-700 p-[2px] transition-all hover:scale-105">
+                      <div className="w-full h-full bg-[#0a0a0c] rounded-full flex items-center justify-center text-[10px] font-bold font-mono text-white">
+                        {s.name.substring(0,2).toUpperCase()}
+                      </div>
                     </div>
-                  ))}
-               </div>
-
-               <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-black uppercase text-zinc-400"><Camera className="text-red-500" /> Поділитися стилем синдикату</div>
-                  <div className="grid grid-cols-2 gap-3">
-                     <input type="text" placeholder="URL зображення..." value={newPostImg} onChange={e => setNewPostImg(e.target.value)} className="bg-black border border-zinc-800 text-xs rounded-xl px-4 py-2.5 text-white font-mono" />
-                     <input type="text" placeholder="Підпис до photo..." value={newPostText} onChange={e => setNewPostText(e.target.value)} className="bg-black border border-zinc-800 text-xs rounded-xl px-4 py-2.5 text-white" />
+                    <span className="text-[9px] mt-1.5 text-zinc-400 font-mono font-medium truncate w-14 text-center">@{s.name}</span>
                   </div>
-                  <button onClick={handleCreatePost} className="w-full py-3 bg-zinc-100 hover:bg-white text-black text-xs font-black uppercase rounded-xl">Закинути в стрічку</button>
-               </div>
+                ))}
+              </div>
+            </div>
 
-               <div className="space-y-6">
-                  {posts && posts.map((post: any) => (
-                    <div key={post.id} className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-                       <div className="p-4 flex items-center gap-3 bg-black/20 border-b border-zinc-800/50 font-mono">
-                          <span className="text-xs font-black text-white">@{post.user?.nickname || "anonymous"}</span>
-                       </div>
-                       <div className="w-full max-h-[400px] bg-black overflow-hidden flex items-center justify-center">
-                          <img src={post.imageUrl} alt="Post" className="w-full object-cover" />
-                       </div>
-                       <div className="p-4 space-y-2">
-                          <button onClick={() => handleLikePost(post.id)} className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-red-500">
-                             <Heart className="h-4 w-4 text-red-600 fill-red-600" /> {post.likes}
-                          </button>
-                          <p className="text-xs text-zinc-300"><span className="font-black font-mono text-white mr-2">@{post.user?.nickname || "anon"}</span>{post.caption}</p>
-                       </div>
+            {/* ДВОКОЛОНКОВИЙ ПЛАН: СТРІЧКА + АКТИВНІ ПЕРЕГОНИ */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              
+              {/* ПОСТ В СТРІЧЦІ */}
+              <div className="space-y-3">
+                <div className="flex gap-4 border-b border-zinc-900 pb-2">
+                  <button className="text-xs font-black font-mono uppercase tracking-wider text-red-500 border-b-2 border-red-500 pb-1">Для тебе</button>
+                  <button className="text-xs font-black font-mono uppercase tracking-wider text-zinc-500 pb-1 hover:text-zinc-300">Підписки</button>
+                  <button className="text-xs font-black font-mono uppercase tracking-wider text-zinc-500 pb-1 hover:text-zinc-300">VIP</button>
+                  <button className="text-xs font-black font-mono uppercase tracking-wider text-zinc-500 pb-1 hover:text-zinc-300">Популярне</button>
+                </div>
+
+                <div className="bg-[#020203] border border-zinc-900 rounded-2xl overflow-hidden shadow-xl">
+                  <div className="p-4 flex items-center justify-between border-b border-zinc-950">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center text-[10px] font-mono font-bold text-zinc-300">NR</div>
+                      <div>
+                        <div className="text-xs font-bold font-mono text-zinc-200">NightRider</div>
+                        <div className="text-[9px] font-mono text-zinc-600">2 год тому</div>
+                      </div>
                     </div>
-                  ))}
-               </div>
-            </div>
-          )}
-
-          {activeTab === "vip" && (
-            <div className="max-w-4xl mx-auto space-y-6">
-               <div className="bg-gradient-to-r from-amber-500/10 to-red-600/10 border border-amber-500/20 p-8 rounded-3xl text-center space-y-3">
-                  <ShieldAlert className="h-10 w-10 text-amber-500 mx-auto" />
-                  <h2 className="text-3xl font-black uppercase text-white tracking-tight">Привілеї синдикату</h2>
-                  <p className="text-xs text-zinc-400 max-w-sm mx-auto font-mono">Множник каси, авторитет у чатах та Даркнет імунітет.</p>
-               </div>
-               <div className="grid grid-cols-3 gap-6">
-                  {vipPlans.map(plan => (
-                    <div key={plan.id} className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl flex flex-col justify-between hover:border-amber-500/40 transition-all space-y-4 shadow-xl">
-                       <div>
-                          <div className="flex justify-between items-center font-mono">
-                             <span className="text-xs font-black uppercase text-amber-400 tracking-wider">{plan.name}</span>
-                             <span className="text-[10px] text-zinc-500">{plan.period}</span>
-                          </div>
-                          <p className="text-xs text-zinc-400 mt-4 leading-relaxed">{plan.desc}</p>
-                       </div>
-                       <div>
-                          <div className="text-2xl font-mono font-black text-white mb-3">₴ {plan.price}</div>
-                          <button onClick={() => handleBuyVip(plan)} className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase text-xs rounded-xl">Активувати</button>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-            </div>
-          )}
-
-          {activeTab === "race" && (
-            <div className="max-w-4xl mx-auto space-y-6">
-                {raceStatus !== "idle" ? (
-                  <div className="bg-zinc-900/50 rounded-3xl p-8 border border-red-600/20 shadow-2xl">
-                    <h2 className="text-xl font-black italic mb-6 uppercase flex items-center gap-2"><Flame className="text-red-600" /> Телеметрія заїзду (Сервер)</h2>
-                    <div className="bg-black p-6 rounded-xl font-mono text-sm text-zinc-300 min-h-[180px] space-y-2 border border-zinc-800">{logs.map((l, i) => <div key={i}>{l}</div>)}</div>
-                    {raceStatus === "finished" && <button onClick={() => setRaceStatus("idle")} className="mt-4 px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold font-mono">Назад в лобі</button>}
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl flex flex-col justify-between space-y-4">
-                         <div className="flex justify-between items-start">
-                            <div>
-                               <h3 className="font-black uppercase italic text-sm text-white">Чернігівська Траса (Ніч)</h3>
-                               <p className="text-[11px] text-zinc-500 mt-1 font-mono">Дистанція: 400 км. Покриття: сухий асфальт.</p>
-                            </div>
-                            <span className="text-emerald-400 font-mono text-sm font-bold">₴ 2,500</span>
-                         </div>
-                         <button onClick={() => handleStartServerRace({ id: "room1", bet: 2500 })} className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-black text-xs rounded-xl uppercase tracking-wider">Залетіти на старт</button>
-                     </div>
+                  <div className="px-4 py-2 text-xs text-zinc-300 leading-relaxed font-sans">
+                    Нічне місто. Швидкість. Свобода.
                   </div>
-                )}
-            </div>
-          )}
+                  <div className="w-full h-64 bg-zinc-950 overflow-hidden relative">
+                    <img src="https://images.unsplash.com/photo-1616422285623-13ff0162193c?auto=format&fit=crop&w=800&q=80" alt="Motorcycle Night" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-3 bg-zinc-950/40 border-t border-zinc-950 flex items-center gap-4 text-zinc-500">
+                    <button className="flex items-center gap-1.5 text-[11px] font-mono font-bold hover:text-red-500"><Heart className="h-4 w-4 text-red-600 fill-red-600" /> 128</button>
+                    <button className="flex items-center gap-1.5 text-[11px] font-mono font-bold hover:text-zinc-300"><MessageCircle className="h-4 w-4" /> 24</button>
+                    <button className="flex items-center gap-1.5 text-[11px] font-mono font-bold hover:text-zinc-300 ml-auto"><Share2 className="h-4 w-4" /> Поділитись</button>
+                  </div>
+                </div>
+              </div>
 
-          {activeTab === "garage" && (
-            <div className="grid grid-cols-2 gap-6 max-w-4xl mx-auto">
-               {garageItems.map(item => (
-                 <div key={item.id} className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl flex justify-between items-center shadow-xl">
+              {/* АКТИВНІ ПЕРЕГОНИ */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center px-1">
+                  <h3 className="text-xs font-black uppercase font-mono tracking-wider text-zinc-400">Активні перегони</h3>
+                  <button className="text-[10px] font-mono text-zinc-600 uppercase hover:text-zinc-400">Дивитися всі</button>
+                </div>
+
+                <div className="bg-[#020203] border border-zinc-900 rounded-2xl p-4 space-y-4 shadow-xl relative overflow-hidden">
+                  <div className="flex justify-between items-start">
                     <div>
-                       <div className="text-sm font-bold text-white uppercase">{item.name}</div>
-                       <div className="text-[11px] text-zinc-500 font-mono mt-0.5">{item.desc}</div>
+                      <div className="text-xs font-black font-mono uppercase text-white flex items-center gap-1.5">
+                        КІМНАТА #2781
+                        <span className="bg-red-950 text-red-500 text-[9px] px-1.5 py-0.5 rounded border border-red-900/50 font-sans font-bold uppercase tracking-widest animate-pulse">В процесі</span>
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-500 mt-0.5">Гравці: 4/4 | Ставка: ₴ 5 000</div>
                     </div>
-                    <div className="text-right space-y-2">
-                       <div className="text-sm font-mono text-emerald-400 font-bold">₴ {item.price.toLocaleString()}</div>
-                       <button className="px-4 py-1.5 bg-zinc-800 text-white text-[11px] font-black uppercase rounded-lg border border-zinc-700">Купити</button>
-                    </div>
-                 </div>
-               ))}
-            </div>
-          )}
-        </div>
-      </main>
+                  </div>
 
-      {activeStoryModal && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4" onClick={() => setActiveStoryModal(null)}>
-           <div className="max-w-md w-full relative space-y-2" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center text-xs font-mono text-zinc-400 px-2">
-                 <span>@{activeStoryModal.user?.nickname || "ХОБОТ"}</span>
-                 <button onClick={() => setActiveStoryModal(null)} className="text-red-500 font-bold hover:text-red-400">ЗАКРИТИ</button>
+                  {/* СТИЛІЗОВАНА МАПА ТРЕКУ ТА СЕТКА ГОНЩИКІВ */}
+                  <div className="relative h-40 bg-zinc-950 rounded-xl border border-zinc-900 overflow-hidden flex items-center p-4">
+                    <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+                    
+                    <div className="w-1/2 space-y-1.5 relative z-10 font-mono text-[10px]">
+                      <div className="flex items-center gap-2 px-2 py-1 bg-zinc-900/80 rounded border border-zinc-800"><span className="text-red-500 font-bold">1</span> Toretto</div>
+                      <div className="flex items-center gap-2 px-2 py-1 bg-red-950/40 rounded border border-red-900/50 text-red-400 font-bold"><span className="text-red-500">2</span> ХОБОТ</div>
+                      <div className="flex items-center gap-2 px-2 py-1 bg-zinc-900/80 rounded border border-zinc-800 text-zinc-400"><span className="text-zinc-600">3</span> Shadow</div>
+                      <div className="flex items-center gap-2 px-2 py-1 bg-zinc-900/80 rounded border border-zinc-800 text-zinc-400"><span className="text-zinc-600">4</span> NightRider</div>
+                    </div>
+
+                    <div className="w-1/2 h-full flex items-center justify-center relative">
+                      <div className="w-24 h-24 border-4 border-dashed border-red-900/30 rounded-full animate-spin [animation-duration:20s]" />
+                      <div className="absolute text-[9px] font-mono text-zinc-500 uppercase tracking-widest">Телеметрія</div>
+                    </div>
+                  </div>
+
+                  {/* РЕКЛАМНИЙ БАНЕР VIP */}
+                  <div className="bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-500/20 p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                      <div className="text-xs font-black font-mono text-amber-400 tracking-wider uppercase">VIP CLUB</div>
+                      <div className="text-[10px] text-zinc-400 font-sans mt-0.5">Стань легендою вулиць прямо зараз</div>
+                    </div>
+                    <button className="bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-black uppercase px-4 py-2 rounded-lg font-mono tracking-wider transition-all">Дізнатись більше</button>
+                  </div>
+                </div>
+
               </div>
-              <div className="w-full h-[500px] bg-zinc-950 rounded-2xl overflow-hidden flex items-center justify-center border border-zinc-800 shadow-2xl">
-                 <img src={activeStoryModal.mediaUrl} alt="Story" className="max-w-full max-h-full object-contain" onError={(e:any)=>{e.target.src="https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=600&q=80"}}/>
+            </div>
+          </div>
+
+          {/* ЧАТИ (ПРАВА ПАНЕЛЬ) */}
+          <aside className="w-72 bg-[#020203] border-l border-zinc-900 p-4 flex flex-col justify-between shrink-0">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-black uppercase font-mono tracking-wider text-zinc-400">Чати</h3>
+                <button className="text-zinc-600 hover:text-zinc-400"><Plus className="h-4 w-4" /></button>
               </div>
-           </div>
+
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-zinc-600" />
+                <input type="text" placeholder="Пошук..." className="w-full bg-[#0a0a0c] border border-zinc-900 rounded-lg pl-8 pr-3 py-1.5 text-[11px] focus:outline-none font-mono" />
+              </div>
+
+              {/* СПИСОК КОРИСТУВАЧІВ У ЧАТІ */}
+              <div className="space-y-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+                <div className="p-2 flex items-center justify-between hover:bg-zinc-900/40 rounded-xl cursor-pointer border-l-2 border-red-500 bg-red-950/10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center text-[10px] font-bold font-mono text-white">TO</div>
+                    <div>
+                      <div className="text-xs font-bold font-mono text-zinc-200">Toretto</div>
+                      <div className="text-[10px] text-zinc-500 max-w-[140px] truncate">Давай на перегон?</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[8px] font-mono text-zinc-600">10:30</div>
+                    <span className="inline-block bg-red-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-0.5">2</span>
+                  </div>
+                </div>
+
+                <div className="p-2 flex items-center justify-between hover:bg-zinc-900/40 rounded-xl cursor-pointer">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center text-[10px] font-bold font-mono text-zinc-400">NR</div>
+                    <div>
+                      <div className="text-xs font-bold font-mono text-zinc-300">NightRider</div>
+                      <div className="text-[10px] text-zinc-500 max-w-[140px] truncate">Гоу сьогодні ввечері</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[8px] font-mono text-zinc-600">10:21</div>
+                    <span className="inline-block bg-red-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full mt-0.5">1</span>
+                  </div>
+                </div>
+
+                {["MotoLife Club", "DriftKing", "BikerBoy"].map((name, idx) => (
+                  <div key={idx} className="p-2 flex items-center gap-2.5 hover:bg-zinc-900/40 rounded-xl cursor-pointer">
+                    <div className="w-7 h-7 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center text-[10px] font-mono text-zinc-500">HB</div>
+                    <div>
+                      <div className="text-xs font-medium font-mono text-zinc-400">{name}</div>
+                      <div className="text-[10px] text-zinc-600 truncate max-w-[150px]">Звʼязок зашифровано...</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-xs font-bold font-mono uppercase tracking-wider text-zinc-300 transition-all">
+              Показати всі чати
+            </button>
+          </aside>
+
         </div>
-      )}
+      </div>
     </div>
   );
 }
