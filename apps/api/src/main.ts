@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import cookieParser = require('cookie-parser');
-import helmet = require('helmet');
+import helmet from 'helmet';
 import csurf = require('csurf');
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
