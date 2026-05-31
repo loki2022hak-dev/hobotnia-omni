@@ -13,6 +13,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY . .
 RUN npm run build -w apps/api
+RUN mkdir -p apps/api/dist/generated && cp -R apps/api/src/generated/prisma apps/api/dist/generated/prisma
 
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
