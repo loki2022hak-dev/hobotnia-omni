@@ -19,4 +19,4 @@ COPY --from=builder /app/apps/api ./apps/api
 COPY --from=builder /app/prisma ./prisma
 WORKDIR /app/apps/api
 EXPOSE 4000
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy --schema ../../prisma/schema.prisma && ./node_modules/.bin/tsx ../../prisma/seed.ts && node dist/main.js"]
+CMD ["sh", "-c", "PATH=./node_modules/.bin:../../node_modules/.bin:$PATH prisma migrate deploy --schema ../../prisma/schema.prisma && tsx ../../prisma/seed.ts && node dist/src/main.js"]

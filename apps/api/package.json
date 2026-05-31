@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
-    "build": "./node_modules/.bin/prisma generate --schema ../../prisma/schema.prisma && ./node_modules/.bin/nest build",
-    "start": "node dist/main.js",
-    "prisma:migrate": "./node_modules/.bin/prisma migrate deploy --schema ../../prisma/schema.prisma",
-    "prisma:dev": "./node_modules/.bin/prisma migrate dev --schema ../../prisma/schema.prisma",
-    "prisma:seed": "./node_modules/.bin/tsx ../../prisma/seed.ts"
+    "build": "PATH=./node_modules/.bin:../../node_modules/.bin:$PATH prisma generate --schema ../../prisma/schema.prisma && nest build",
+    "start": "node dist/src/main.js",
+    "prisma:migrate": "PATH=./node_modules/.bin:../../node_modules/.bin:$PATH prisma migrate deploy --schema ../../prisma/schema.prisma",
+    "prisma:dev": "PATH=./node_modules/.bin:../../node_modules/.bin:$PATH prisma migrate dev --schema ../../prisma/schema.prisma",
+    "prisma:seed": "PATH=./node_modules/.bin:../../node_modules/.bin:$PATH tsx ../../prisma/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
