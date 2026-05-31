@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: hobotnia-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      - key: WEB_ORIGIN
+        value: https://hobotnia-omni-bice.vercel.app
+      - key: CRYPTO_PAY_API_URL
+        value: https://pay.crypt.bot/api
+      - key: CRYPTO_PAY_API_TOKEN
+        sync: false
+      - key: CRYPTO_PAY_WEBHOOK_SECRET
+        generateValue: true

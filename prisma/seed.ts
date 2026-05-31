@@ -1,33 +1,48 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '../apps/api/src/generated/prisma';
 
 const prisma = new PrismaClient();
 
+const categories = [
+  ['life', 'Життя', 'Особисті історії, втрати, зміни та відновлення'],
+  ['relationships', 'Стосунки', 'Сімейні, дружні та романтичні стосунки'],
+  ['business', 'Бізнес', 'Підприємництво, партнерства та гроші'],
+  ['work', 'Робота', 'Карʼєра, команди, найм і професійні зміни'],
+  ['self-development', 'Саморозвиток', 'Звички, навчання, дисципліна та цілі'],
+  ['psychology', 'Психологія', 'Психічне здоровʼя, терапія та підтримка'],
+  ['health', 'Здоровʼя', 'Фізичне здоровʼя, відновлення та турбота про себе'],
+  ['technology', 'Технології', 'Інструменти, цифрові продукти та технічний досвід']
+] as const;
+
+const achievements = [
+  ['first_post', 'Перший допис', 'Користувач опублікував перший допис'],
+  ['first_comment', 'Перший коментар', 'Користувач долучився до обговорення'],
+  ['community_builder', 'Будівничий спільноти', 'Користувач створив спільноту']
+] as const;
+
 async function main() {
-  const defaultUserId = "default-user-id";
+  for (const [slug, title, description] of categories) {
+    await prisma.forumCategory.upsert({
+      where: { slug },
+      update: { title, description },
+      create: { slug, title, description }
+    });
+  }
 
-  // Використовуємо реальні поля: nickname, walletBalance, isVip тощо
-  const user = await prisma.user.upsert({
-    where: { id: defaultUserId },
-    update: {},
-    create: {
-      id: defaultUserId,
-      nickname: "ХОБОТ",
-      walletBalance: 12450.00,
-      isVip: true,
-      vipPlan: "GOLD",
-      avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&auto=format&fit=crop&q=80",
-    },
-  });
-
-  console.log(`[SEED] База даних успішно ініціалізована. Дефолтний юзер: ${user.nickname}`);
+  for (const [code, title, description] of achievements) {
+    await prisma.achievement.upsert({
+      where: { code },
+      update: { title, description },
+      create: { code, title, description }
+    });
+  }
 }
 
 main()
   .then(async () => {
     await prisma.$disconnect();
   })
-  .catch(async (e) => {
-    console.error(e);
+  .catch(async (error) => {
+    console.error(error);
     await prisma.$disconnect();
     process.exit(1);
   });

@@ -1,0 +1,334 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  PREMIUM
+  MODERATOR
+  ADMIN
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum PostType {
+  TEXT
+  IMAGE
+  LINK
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  MESSAGE
+  SYSTEM
+  REPORT
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  REJECTED
+}
+
+enum MarketplaceStatus {
+  ACTIVE
+  SOLD
+  ARCHIVED
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  REMOTE
+}
+
+model User {
+  id                 String              @id @default(uuid())
+  email              String              @unique
+  username           String              @unique
+  passwordHash       String
+  role               Role                @default(USER)
+  emailVerifiedAt    DateTime?
+  twoFactorSecret    String?
+  twoFactorEnabled   Boolean             @default(false)
+  status             String              @default("online")
+  reputation         Int                 @default(0)
+  premiumUntil       DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  profile            Profile?
+  refreshTokens      RefreshToken[]
+  posts              Post[]
+  comments           Comment[]
+  likes              Like[]
+  savedPosts         SavedPost[]
+  reports            Report[]            @relation("ReportAuthor")
+  auditLogs          AuditLog[]
+  communityMembers   CommunityMember[]
+  messages           Message[]
+  jobApplications    JobApplication[]
+  marketplaceItems   MarketplaceItem[]
+  notifications      Notification[]
+  achievements       UserAchievement[]
+  subscriptions      Subscription[]
+}
+
+model Profile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  avatarUrl   String?
+  coverUrl    String?
+  bio         String?
+  city        String?
+  socialLinks Json     @default("{}")
+  stats       Json     @default("{}")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  userAgent  String?
+  ip         String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id          String      @id @default(uuid())
+  authorId    String
+  content     String
+  type        PostType    @default(TEXT)
+  mediaUrls   String[]    @default([])
+  communityId String?
+  repostOfId  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  community   Community?  @relation(fields: [communityId], references: [id])
+  repostOf    Post?       @relation("Reposts", fields: [repostOfId], references: [id])
+  reposts     Post[]      @relation("Reposts")
+  comments    Comment[]
+  likes       Like[]
+  savedBy     SavedPost[]
+  reports     Report[]
+  @@index([createdAt])
+  @@index([authorId])
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  postId    String
+  authorId  String
+  parentId  String?
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  reports   Report[]
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@unique([userId, postId])
+}
+
+model SavedPost {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@id([userId, postId])
+}
+
+model ForumCategory {
+  id          String       @id @default(uuid())
+  slug        String       @unique
+  title       String
+  description String?
+  topics      ForumTopic[]
+}
+
+model ForumTopic {
+  id         String        @id @default(uuid())
+  categoryId String
+  authorId   String
+  title      String
+  content    String
+  createdAt  DateTime      @default(now())
+  category   ForumCategory @relation(fields: [categoryId], references: [id])
+}
+
+model Community {
+  id          String            @id @default(uuid())
+  ownerId     String
+  name        String
+  slug        String            @unique
+  description String?
+  visibility  Visibility        @default(PUBLIC)
+  createdAt   DateTime          @default(now())
+  members     CommunityMember[]
+  posts       Post[]
+}
+
+model CommunityMember {
+  userId      String
+  communityId String
+  role        Role      @default(USER)
+  joinedAt    DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  @@id([userId, communityId])
+}
+
+model Chat {
+  id        String    @id @default(uuid())
+  title     String?
+  isGroup   Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  members   ChatMember[]
+  messages  Message[]
+}
+
+model ChatMember {
+  chatId   String
+  userId   String
+  joinedAt DateTime @default(now())
+  chat     Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  @@id([chatId, userId])
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  chatId      String
+  authorId    String
+  content     String
+  attachments String[] @default([])
+  reactions   Json     @default("{}")
+  createdAt   DateTime @default(now())
+  chat        Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model JobPost {
+  id          String   @id @default(uuid())
+  company     String
+  title       String
+  description String
+  city        String?
+  type        JobType  @default(REMOTE)
+  createdAt   DateTime @default(now())
+  applications JobApplication[]
+}
+
+model JobApplication {
+  id        String   @id @default(uuid())
+  jobId     String
+  userId    String
+  resumeUrl String?
+  coverText String?
+  createdAt DateTime @default(now())
+  job       JobPost  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MarketplaceItem {
+  id          String            @id @default(uuid())
+  sellerId    String
+  title       String
+  description String
+  price       Decimal           @db.Decimal(12, 2)
+  category    String
+  photoUrls   String[]          @default([])
+  status      MarketplaceStatus @default(ACTIVE)
+  createdAt   DateTime          @default(now())
+  seller      User              @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  authorId   String
+  postId     String?
+  commentId  String?
+  reason     String
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  author     User         @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  post       Post?        @relation(fields: [postId], references: [id])
+  comment    Comment?     @relation(fields: [commentId], references: [id])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Achievement {
+  id          String            @id @default(uuid())
+  code        String            @unique
+  title       String
+  description String
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  userId        String
+  achievementId String
+  awardedAt     DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  @@id([userId, achievementId])
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  userId    String
+  plan      String
+  status    String
+  startsAt  DateTime @default(now())
+  endsAt    DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json     @default("{}")
+  ip        String?
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id])
+}

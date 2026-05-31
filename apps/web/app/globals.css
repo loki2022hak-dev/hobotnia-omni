@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+body { margin: 0; background: #080a0f; color: #edf2f7; }
+input, textarea, select { background: #0d111a; border: 1px solid #242a3a; border-radius: 8px; padding: 10px 12px; outline: none; }
+button { border-radius: 8px; }
+.card { background: #111520; border: 1px solid #242a3a; border-radius: 8px; }
+.light body { background: #f7f8fb; color: #111827; }
+.light .card, .light input, .light textarea { background: #ffffff; border-color: #d9deea; color: #111827; }
