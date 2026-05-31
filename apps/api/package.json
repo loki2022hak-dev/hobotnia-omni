@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
-    "build": "prisma generate --schema ../../prisma/schema.prisma && nest build",
+    "build": "npx prisma generate --schema ../../prisma/schema.prisma && npx nest build",
     "start": "node dist/main.js",
-    "prisma:migrate": "prisma migrate deploy --schema ../../prisma/schema.prisma",
-    "prisma:dev": "prisma migrate dev --schema ../../prisma/schema.prisma",
+    "prisma:migrate": "npx prisma migrate deploy --schema ../../prisma/schema.prisma",
+    "prisma:dev": "npx prisma migrate dev --schema ../../prisma/schema.prisma",
     "prisma:seed": "tsx ../../prisma/seed.ts"
   },
   "dependencies": {
